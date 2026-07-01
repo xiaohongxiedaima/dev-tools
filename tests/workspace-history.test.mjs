@@ -63,7 +63,7 @@ test("snapshot comparison ignores timestamps but still detects tool-state change
     toolId: "json-formatter",
     inputValue: "input",
     outputValue: "output",
-    options: { jsonAction: "format" },
+    options: { jsonMode: "format", jsonSortKeys: false },
     viewState: {
       jsonOutputMode: "tree",
       jsonTreeDepth: 2,
@@ -77,7 +77,7 @@ test("snapshot comparison ignores timestamps but still detects tool-state change
     toolId: "json-formatter",
     inputValue: "input",
     outputValue: "output",
-    options: { jsonAction: "minify" },
+    options: { jsonMode: "minify", jsonSortKeys: false },
     viewState: {
       jsonOutputMode: "tree",
       jsonTreeDepth: 2,
@@ -86,6 +86,21 @@ test("snapshot comparison ignores timestamps but still detects tool-state change
 
   assert.equal(isSameHistorySnapshot(left, right), true);
   assert.equal(isSameHistorySnapshot(left, changed), false);
+
+  const base64Decode = createHistorySnapshot({
+    toolId: "base64",
+    inputValue: "aGVsbG8=",
+    outputValue: "hello",
+    options: { base64Mode: "decode" },
+  });
+  const base64Encode = createHistorySnapshot({
+    toolId: "base64",
+    inputValue: "hello",
+    outputValue: "aGVsbG8=",
+    options: { base64Mode: "encode" },
+  });
+
+  assert.equal(isSameHistorySnapshot(base64Decode, base64Encode), false);
 });
 
 test("retention constants stay fixed", () => {
@@ -98,7 +113,7 @@ test("snapshot builder stores current workspace state", () => {
     toolId: "json-formatter",
     inputValue: '{"a":1}',
     outputValue: '{\n  "a": 1\n}',
-    options: { jsonAction: "sort", liveMode: false },
+    options: { jsonMode: "format", jsonSortKeys: true, liveMode: false },
     viewState: { jsonOutputMode: "tree", jsonTreeDepth: 3, jsonTreeCollapsedNodeLength: 4 },
   });
 
@@ -107,7 +122,7 @@ test("snapshot builder stores current workspace state", () => {
     inputValue: '{"a":1}',
     outputValue: '{\n  "a": 1\n}',
     savedAt: "",
-    options: { jsonAction: "sort", liveMode: false },
+    options: { jsonMode: "format", jsonSortKeys: true, liveMode: false },
     viewState: { jsonOutputMode: "tree", jsonTreeDepth: 3, jsonTreeCollapsedNodeLength: 4 },
     toolState: {},
   });
@@ -351,7 +366,11 @@ test("workspace store declares separate manual and auto history state", () => {
   assert.match(workspaceStore, /const manualHistory = ref/);
   assert.match(workspaceStore, /const autoHistory = ref/);
   assert.match(workspaceStore, /const lastAutoHistorySnapshot = ref/);
-  assert.match(workspaceStore, /const showLineNumbers = ref\(false\)/);
+  assert.match(workspaceStore, /const base64Mode = ref<Base64TransformMode>\("decode"\)/);
+  assert.match(workspaceStore, /const inputShowLineNumbers = ref\(false\)/);
+  assert.match(workspaceStore, /const outputShowLineNumbers = ref\(false\)/);
+  assert.match(workspaceStore, /const inputSoftWrap = ref\(true\)/);
+  assert.match(workspaceStore, /const outputSoftWrap = ref\(false\)/);
 });
 
 test("workspace store exposes history save restore and auto-save actions", () => {
@@ -361,7 +380,11 @@ test("workspace store exposes history save restore and auto-save actions", () =>
   assert.match(workspaceStore, /function findMatchingAutoHistoryRecord\(/);
   assert.match(workspaceStore, /async function deleteHistoryEntry\(/);
   assert.match(workspaceStore, /async function clearHistoryEntries\(/);
-  assert.match(workspaceStore, /function setShowLineNumbers\(/);
+  assert.match(workspaceStore, /function setInputShowLineNumbers\(/);
+  assert.match(workspaceStore, /function setOutputShowLineNumbers\(/);
+  assert.match(workspaceStore, /function setInputSoftWrap\(/);
+  assert.match(workspaceStore, /function setOutputSoftWrap\(/);
+  assert.match(workspaceStore, /function setBase64Mode\(/);
 });
 
 test("workspace store uses a JSON default input value and skips auto-saving tool defaults", () => {
@@ -389,8 +412,16 @@ test("workspace store restores snapshot fields back into live tool state", () =>
   assert.match(workspaceStore, /inputValue\.value = snapshot\.inputValue/);
   assert.match(
     workspaceStore,
-    /manualOutput\.value = snapshot\.toolId === "redis-lua-debug-console" \? snapshot\.outputValue : tool\.sampleOutput/,
+    /manualOutput\.value =[\s\S]*snapshot\.toolId === "redis-lua-debug-console"[\s\S]*snapshot\.outputValue[\s\S]*snapshot\.toolId === "json-formatter"[\s\S]*snapshot\.outputValue[\s\S]*snapshot\.toolId === "base64"[\s\S]*snapshot\.outputValue[\s\S]*tool\.sampleOutput/,
   );
+  assert.match(workspaceStore, /liveMode\.value = snapshot\.options\.liveMode \?\? tool\.id !== "redis-lua-debug-console"/);
+  assert.match(workspaceStore, /inputShowLineNumbers\.value = snapshot\.viewState\.inputShowLineNumbers \?\? false/);
+  assert.match(workspaceStore, /outputShowLineNumbers\.value = snapshot\.viewState\.outputShowLineNumbers \?\? false/);
+  assert.match(workspaceStore, /inputSoftWrap\.value = snapshot\.viewState\.inputSoftWrap \?\? true/);
+  assert.match(workspaceStore, /outputSoftWrap\.value = snapshot\.viewState\.outputSoftWrap \?\? false/);
+  assert.match(workspaceStore, /jsonMode\.value = snapshot\.options\.jsonMode \?\? \(snapshot\.options\.jsonAction === "minify" \? "minify" : "format"\)/);
+  assert.match(workspaceStore, /jsonSortKeys\.value = snapshot\.options\.jsonSortKeys \?\? snapshot\.options\.jsonAction === "sort"/);
+  assert.match(workspaceStore, /base64Mode\.value = snapshot\.options\.base64Mode \?\? "decode"/);
   assert.doesNotMatch(workspaceStore, /jsonOutputMode\.value = snapshot\.viewState\.jsonOutputMode/);
 });
 

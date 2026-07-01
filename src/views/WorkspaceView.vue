@@ -24,14 +24,14 @@ function stopResize() {
   cleanupResizeListeners = null;
 }
 
-function startResize(panel: "sidebar" | "inspector", event: MouseEvent) {
+function startResize(panel: "sidebar" | "inspector", event: PointerEvent) {
   event.preventDefault();
   const startX = event.clientX;
   const startWidth = panel === "sidebar" ? sidebarWidth.value : inspectorWidth.value;
   const minWidth = panel === "sidebar" ? 240 : 280;
   const maxWidth = panel === "sidebar" ? 420 : 520;
 
-  const handleMouseMove = (moveEvent: MouseEvent) => {
+  const handlePointerMove = (moveEvent: PointerEvent) => {
     const delta = moveEvent.clientX - startX;
     const nextWidth = panel === "sidebar" ? startWidth + delta : startWidth - delta;
     const boundedWidth = Math.min(Math.max(nextWidth, minWidth), maxWidth);
@@ -44,19 +44,20 @@ function startResize(panel: "sidebar" | "inspector", event: MouseEvent) {
     inspectorWidth.value = boundedWidth;
   };
 
-  const handleMouseUp = () => {
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
-    cleanupResizeListeners = null;
-  };
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
 
   cleanupResizeListeners = () => {
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", stopResize);
+    window.removeEventListener("pointercancel", stopResize);
+    document.body.style.removeProperty("cursor");
+    document.body.style.removeProperty("user-select");
   };
 
-  window.addEventListener("mousemove", handleMouseMove);
-  window.addEventListener("mouseup", handleMouseUp);
+  window.addEventListener("pointermove", handlePointerMove);
+  window.addEventListener("pointerup", stopResize);
+  window.addEventListener("pointercancel", stopResize);
 }
 
 watch(
@@ -94,7 +95,7 @@ onBeforeUnmount(() => {
       class="workspace-resize-handle workspace-resize-handle--sidebar"
       role="separator"
       aria-label="调整左侧工具导航宽度"
-      @mousedown="startResize('sidebar', $event)"
+      @pointerdown="startResize('sidebar', $event)"
     />
     <ToolWorkspacePanel />
     <div
@@ -102,7 +103,7 @@ onBeforeUnmount(() => {
       class="workspace-resize-handle workspace-resize-handle--inspector"
       role="separator"
       aria-label="调整右侧历史中心宽度"
-      @mousedown="startResize('inspector', $event)"
+      @pointerdown="startResize('inspector', $event)"
     />
     <WorkspaceInspector v-if="workspaceStore.inspectorVisible" />
   </section>

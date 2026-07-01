@@ -1,10 +1,17 @@
 <script setup lang="ts">
+import { computed } from "vue";
+import { Star } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import { DATABASE_URL } from "../lib/database";
 import { useWorkspaceStore } from "../stores/workspace";
 
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
+
+const searchTerm = computed({
+  get: () => workspaceStore.searchTerm,
+  set: (value: string) => workspaceStore.setSearchTerm(value),
+});
 
 function openTool(toolId: string) {
   workspaceStore.setActiveTool(toolId);
@@ -16,12 +23,9 @@ function openTool(toolId: string) {
   <section class="home-view">
     <section class="hero shell-card">
       <div class="hero-copy">
-        <p class="eyebrow">Layout B + light homepage</p>
-        <h1>先看首页，再快速进入工具工作台。</h1>
-        <p class="summary">
-          首页只做轻量入口：搜索、常用工具、最近使用和运行状态；真正的高频操作放在左侧工具树 +
-          中央输入输出 + 右侧结果面板里。
-        </p>
+        <label class="search-shell">
+          <input v-model="searchTerm" type="text" placeholder="搜索 Redis Lua、JSON、时间戳、URL、JWT..." />
+        </label>
 
         <div class="hero-actions">
           <button class="primary-button" type="button" @click="openTool('redis-lua-debug-console')">打开 Redis Lua 调试台</button>
@@ -102,7 +106,7 @@ function openTool(toolId: string) {
               type="button"
               @click="openTool(tool.id)"
             >
-              ★ {{ tool.name }}
+              <Star :size="12" fill="#fbbf24" color="#fbbf24" /> {{ tool.name }}
             </button>
           </div>
         </div>

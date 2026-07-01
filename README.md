@@ -21,6 +21,10 @@ npm run tauri dev
 - SQLite plugin wired in both Rust and TypeScript
 - Seeded `command_presets` table to verify local persistence on first launch
 
+## Constraints
+
+- Do not change the JSON formatter tool logic unless the user has explicitly confirmed the change first.
+
 ## Good next extensions
 
 - service status monitoring

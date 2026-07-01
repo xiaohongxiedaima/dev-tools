@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
+import { ChevronDown, ChevronUp, Trash2, X } from "lucide-vue-next";
 import { useWorkspaceStore } from "../../stores/workspace";
 
 const router = useRouter();
@@ -58,14 +59,29 @@ function openTool(toolId: string) {
 
 <template>
   <aside class="inspector shell-card">
+    <div class="inspector-top-row">
+      <h2>历史中心</h2>
+      <button
+        class="ghost-button small icon-only"
+        type="button"
+        aria-label="隐藏右侧历史中心"
+        title="隐藏右侧历史中心"
+        @click="workspaceStore.toggleInspectorVisibility()"
+      >
+        <X :size="16" />
+      </button>
+    </div>
     <section class="inspector-section">
       <div class="history-header-row">
         <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('manual-history')">
           <span>手动保存</span>
-          <span>{{ workspaceStore.isInspectorSectionOpen("manual-history") ? "收起" : "展开" }}</span>
+          <component
+            :is="workspaceStore.isInspectorSectionOpen('manual-history') ? ChevronUp : ChevronDown"
+            :size="14"
+          />
         </button>
-        <button class="ghost-button small" type="button" :disabled="manualHistory.length === 0" @click="clearHistoryEntries('manual')">
-          一键清空
+        <button class="ghost-button small icon-only" type="button" :disabled="manualHistory.length === 0" title="一键清空" @click="clearHistoryEntries('manual')">
+          <Trash2 :size="14" />
         </button>
       </div>
       <div v-if="workspaceStore.isInspectorSectionOpen('manual-history')" class="inspector-body">
@@ -92,10 +108,13 @@ function openTool(toolId: string) {
       <div class="history-header-row">
         <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('auto-history')">
           <span>自动输入历史</span>
-          <span>{{ workspaceStore.isInspectorSectionOpen("auto-history") ? "收起" : "展开" }}</span>
+          <component
+            :is="workspaceStore.isInspectorSectionOpen('auto-history') ? ChevronUp : ChevronDown"
+            :size="14"
+          />
         </button>
-        <button class="ghost-button small" type="button" :disabled="autoHistory.length === 0" @click="clearHistoryEntries('auto')">
-          一键清空
+        <button class="ghost-button small icon-only" type="button" :disabled="autoHistory.length === 0" title="一键清空" @click="clearHistoryEntries('auto')">
+          <Trash2 :size="14" />
         </button>
       </div>
       <div v-if="workspaceStore.isInspectorSectionOpen('auto-history')" class="inspector-body">
@@ -121,7 +140,10 @@ function openTool(toolId: string) {
     <section class="inspector-section">
       <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('recent')">
         <span>最近使用</span>
-        <span>{{ workspaceStore.isInspectorSectionOpen("recent") ? "收起" : "展开" }}</span>
+        <component
+          :is="workspaceStore.isInspectorSectionOpen('recent') ? ChevronUp : ChevronDown"
+          :size="14"
+        />
       </button>
       <div v-if="workspaceStore.isInspectorSectionOpen('recent')" class="inspector-body">
         <div class="tag-row">
@@ -141,7 +163,10 @@ function openTool(toolId: string) {
     <section class="inspector-section">
       <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('favorites')">
         <span>常用工具</span>
-        <span>{{ workspaceStore.isInspectorSectionOpen("favorites") ? "收起" : "展开" }}</span>
+        <component
+          :is="workspaceStore.isInspectorSectionOpen('favorites') ? ChevronUp : ChevronDown"
+          :size="14"
+        />
       </button>
       <div v-if="workspaceStore.isInspectorSectionOpen('favorites')" class="inspector-body">
         <div class="tag-row">
@@ -161,7 +186,10 @@ function openTool(toolId: string) {
     <section class="inspector-section">
       <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('presets')">
         <span>常用预设</span>
-        <span>{{ workspaceStore.isInspectorSectionOpen("presets") ? "收起" : "展开" }}</span>
+        <component
+          :is="workspaceStore.isInspectorSectionOpen('presets') ? ChevronUp : ChevronDown"
+          :size="14"
+        />
       </button>
       <div v-if="workspaceStore.isInspectorSectionOpen('presets')" class="inspector-body">
         <div class="preset-stack">
@@ -177,7 +205,10 @@ function openTool(toolId: string) {
     <section class="inspector-section">
       <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('tips')">
         <span>使用建议</span>
-        <span>{{ workspaceStore.isInspectorSectionOpen("tips") ? "收起" : "展开" }}</span>
+        <component
+          :is="workspaceStore.isInspectorSectionOpen('tips') ? ChevronUp : ChevronDown"
+          :size="14"
+        />
       </button>
       <div v-if="workspaceStore.isInspectorSectionOpen('tips')" class="inspector-body">
         <ul class="bullet-list">

@@ -2,7 +2,9 @@
 import { computed, shallowRef } from "vue";
 import CodeMirror from "vue-codemirror6";
 import { json } from "@codemirror/lang-json";
-import { githubDark } from "@uiw/codemirror-theme-github";
+import { LanguageSupport, StreamLanguage } from "@codemirror/language";
+import { lua } from "@codemirror/legacy-modes/mode/lua";
+import { githubLight } from "@uiw/codemirror-theme-github";
 import type { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { findEditorMatch } from "../../lib/editor-search";
@@ -11,15 +13,17 @@ const props = withDefaults(
   defineProps<{
     modelValue: string;
     readonly?: boolean;
-    language?: "json" | "text";
+    language?: "json" | "lua" | "text";
     placeholder?: string;
     showLineNumbers?: boolean;
+    wrap?: boolean;
   }>(),
   {
     readonly: false,
     language: "text",
     placeholder: "",
     showLineNumbers: false,
+    wrap: true,
   },
 );
 
@@ -28,8 +32,18 @@ const emit = defineEmits<{
   blur: [];
 }>();
 
-const lang = computed(() => (props.language === "json" ? json() : undefined));
-const extensions = computed(() => [githubDark]);
+const lang = computed(() => {
+  if (props.language === "json") {
+    return json();
+  }
+
+  if (props.language === "lua") {
+    return new LanguageSupport(StreamLanguage.define(lua));
+  }
+
+  return undefined;
+});
+const extensions = computed(() => [githubLight]);
 const editorView = shallowRef<EditorView | null>(null);
 
 function updateValue(value?: string | Text) {
@@ -121,8 +135,8 @@ defineExpose({
     <CodeMirror
       :model-value="props.modelValue"
       basic
-      wrap
-      :dark="true"
+      :wrap="props.wrap"
+      :dark="false"
       :readonly="props.readonly"
       :lang="lang"
       :extensions="extensions"
@@ -134,6 +148,22 @@ defineExpose({
 </template>
 
 <style scoped>
+.code-editor-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.code-editor-shell :deep(.vue-codemirror) {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.code-editor-shell :deep(.cm-editor) {
+  flex: 1;
+  min-height: 0;
+}
+
 .code-editor-shell--hide-line-numbers :deep(.cm-gutters) {
   display: none;
 }

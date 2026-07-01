@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
+import { applyBase64Transform, type Base64TransformMode } from "../lib/base64-tools";
 import {
   DATABASE_URL,
   clearWorkspaceHistory,
@@ -13,7 +14,7 @@ import {
   type CommandPreset,
   type WorkspaceHistoryRecord,
 } from "../lib/database";
-import { applyJsonTransform, type JsonTransformAction } from "../lib/json-tools";
+import { applyJsonTransform, type JsonTransformMode } from "../lib/json-tools";
 import {
   AUTO_HISTORY_LIMIT,
   MANUAL_HISTORY_LIMIT,
@@ -69,9 +70,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const searchTerm = ref("");
   const activeToolId = ref(defaultToolId);
   const inputValue = ref(getToolDefaultInputValue(getTool(defaultToolId) ?? tools[0]));
-  const showLineNumbers = ref(false);
+  const inputShowLineNumbers = ref(false);
+  const outputShowLineNumbers = ref(false);
+  const inputSoftWrap = ref(true);
+  const outputSoftWrap = ref(false);
   const liveMode = ref(true);
-  const jsonAction = ref<JsonTransformAction>("format");
+  const jsonMode = ref<JsonTransformMode>("format");
+  const jsonSortKeys = ref(false);
+  const base64Mode = ref<Base64TransformMode>("decode");
   const jsonOutputMode = ref<"text" | "tree">("text");
   const jsonTreeDepth = ref(Number.POSITIVE_INFINITY);
   const jsonTreeCollapsedNodeLength = ref(Number.POSITIVE_INFINITY);
@@ -104,9 +110,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
     if (activeTool.value.id === "json-formatter") {
       try {
-        return applyJsonTransform(inputValue.value, jsonAction.value);
+        return applyJsonTransform(inputValue.value, {
+          mode: jsonMode.value,
+          sortKeys: jsonSortKeys.value,
+        });
       } catch (error) {
         return `JSON 解析失败：${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
+
+    if (activeTool.value.id === "base64") {
+      try {
+        return applyBase64Transform(inputValue.value, base64Mode.value);
+      } catch (error) {
+        return `Base64 转换失败：${error instanceof Error ? error.message : String(error)}`;
       }
     }
 
@@ -193,6 +210,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     redisLuaLastResponse.value = null;
   }
 
+  function applyPanelViewDefaults() {
+    inputShowLineNumbers.value = false;
+    outputShowLineNumbers.value = false;
+    inputSoftWrap.value = true;
+    outputSoftWrap.value = false;
+  }
+
   function setSearchTerm(value: string) {
     searchTerm.value = value;
   }
@@ -201,8 +225,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     activeToolId.value = tool.id;
     inputValue.value = getToolDefaultInputValue(tool);
     manualOutput.value = tool.sampleOutput;
+    applyPanelViewDefaults();
     liveMode.value = tool.id !== "redis-lua-debug-console";
-    jsonAction.value = "format";
+    jsonMode.value = "format";
+    jsonSortKeys.value = false;
+    base64Mode.value = "decode";
     jsonOutputMode.value = "text";
     jsonTreeDepth.value = Number.POSITIVE_INFINITY;
     jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
@@ -227,12 +254,32 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     liveMode.value = value;
   }
 
-  function setShowLineNumbers(value: boolean) {
-    showLineNumbers.value = value;
+  function setInputShowLineNumbers(value: boolean) {
+    inputShowLineNumbers.value = value;
   }
 
-  function setJsonAction(action: JsonTransformAction) {
-    jsonAction.value = action;
+  function setOutputShowLineNumbers(value: boolean) {
+    outputShowLineNumbers.value = value;
+  }
+
+  function setInputSoftWrap(value: boolean) {
+    inputSoftWrap.value = value;
+  }
+
+  function setOutputSoftWrap(value: boolean) {
+    outputSoftWrap.value = value;
+  }
+
+  function setJsonMode(mode: JsonTransformMode) {
+    jsonMode.value = mode;
+  }
+
+  function setBase64Mode(mode: Base64TransformMode) {
+    base64Mode.value = mode;
+  }
+
+  function toggleJsonSortKeys() {
+    jsonSortKeys.value = !jsonSortKeys.value;
   }
 
   function setJsonOutputMode(mode: "text" | "tree") {
@@ -367,10 +414,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       inputValue: inputValue.value,
       outputValue: outputPreview.value,
       options: {
-        jsonAction: jsonAction.value,
+        jsonMode: jsonMode.value,
+        jsonSortKeys: jsonSortKeys.value,
+        base64Mode: base64Mode.value,
         liveMode: liveMode.value,
       },
       viewState: {
+        inputShowLineNumbers: inputShowLineNumbers.value,
+        outputShowLineNumbers: outputShowLineNumbers.value,
+        inputSoftWrap: inputSoftWrap.value,
+        outputSoftWrap: outputSoftWrap.value,
         jsonOutputMode: jsonOutputMode.value,
         jsonTreeDepth: jsonTreeDepth.value,
         jsonTreeCollapsedNodeLength: jsonTreeCollapsedNodeLength.value,
@@ -479,7 +532,28 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     applyToolStateDefaults(tool);
     activeToolId.value = snapshot.toolId;
     inputValue.value = snapshot.inputValue;
-    manualOutput.value = snapshot.toolId === "redis-lua-debug-console" ? snapshot.outputValue : tool.sampleOutput;
+    manualOutput.value =
+      snapshot.toolId === "redis-lua-debug-console"
+        ? snapshot.outputValue
+        : snapshot.toolId === "json-formatter"
+          ? snapshot.outputValue
+          : snapshot.toolId === "base64"
+            ? snapshot.outputValue
+          : tool.sampleOutput;
+    liveMode.value = snapshot.options.liveMode ?? tool.id !== "redis-lua-debug-console";
+    inputShowLineNumbers.value = snapshot.viewState.inputShowLineNumbers ?? false;
+    outputShowLineNumbers.value = snapshot.viewState.outputShowLineNumbers ?? false;
+    inputSoftWrap.value = snapshot.viewState.inputSoftWrap ?? true;
+    outputSoftWrap.value = snapshot.viewState.outputSoftWrap ?? false;
+
+    if (snapshot.toolId === "json-formatter") {
+      jsonMode.value = snapshot.options.jsonMode ?? (snapshot.options.jsonAction === "minify" ? "minify" : "format");
+      jsonSortKeys.value = snapshot.options.jsonSortKeys ?? snapshot.options.jsonAction === "sort";
+    }
+
+    if (snapshot.toolId === "base64") {
+      base64Mode.value = snapshot.options.base64Mode ?? "decode";
+    }
 
     if (snapshot.toolId === "redis-lua-debug-console" && snapshot.toolState.redisLua) {
       redisLuaRedisUrl.value = snapshot.toolState.redisLua.redisUrl;
@@ -532,6 +606,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     autoHistory,
     bootstrapStatus,
     bootstrapWorkspace,
+    base64Mode,
     errorMessage,
     favoriteToolIds,
     favoritePresets,
@@ -539,10 +614,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     featuredTools,
     filteredCategories,
     inputValue,
+    inputShowLineNumbers,
+    inputSoftWrap,
     inspectorVisible,
     isInitializing,
     isLoading,
-    jsonAction,
+    jsonMode,
+    jsonSortKeys,
     jsonOutputMode,
     jsonTreeDepth,
     jsonTreeCollapsedNodeLength,
@@ -552,6 +630,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     liveMode,
     manualHistory,
     outputPreview,
+    outputShowLineNumbers,
+    outputSoftWrap,
     presets,
     recentTools,
     redisLuaArgvText,
@@ -563,22 +643,26 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     deleteHistoryEntry,
     restoreHistoryEntry,
     searchTerm,
-    showLineNumbers,
     isInspectorSectionOpen,
     clearHistoryEntries,
     saveCurrentHistoryEntry,
     saveAutoHistoryOnInputBlur,
     setActiveTool,
+    setBase64Mode,
+    setInputShowLineNumbers,
+    setInputSoftWrap,
     setInputValue,
-    setJsonAction,
+    setJsonMode,
     setJsonOutputMode,
     setLiveMode,
+    setOutputShowLineNumbers,
+    setOutputSoftWrap,
     setRedisLuaArgvText,
     setRedisLuaExecutionMode,
     setRedisLuaKeysText,
     setRedisLuaRedisUrl,
-    setShowLineNumbers,
     setSearchTerm,
+    toggleJsonSortKeys,
     expandJsonTree,
     collapseJsonTree,
     runCurrentTransform,

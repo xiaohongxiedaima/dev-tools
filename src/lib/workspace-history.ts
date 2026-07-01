@@ -5,10 +5,17 @@ export type WorkspaceHistorySource = "manual" | "auto";
 
 export type WorkspaceHistoryOptions = {
   jsonAction?: "format" | "minify" | "sort";
+  jsonMode?: "format" | "minify";
+  jsonSortKeys?: boolean;
+  base64Mode?: "decode" | "encode";
   liveMode?: boolean;
 };
 
 export type WorkspaceHistoryViewState = {
+  inputShowLineNumbers?: boolean;
+  outputShowLineNumbers?: boolean;
+  inputSoftWrap?: boolean;
+  outputSoftWrap?: boolean;
   jsonOutputMode?: "text" | "tree";
   jsonTreeDepth?: number;
   jsonTreeCollapsedNodeLength?: number;
@@ -47,14 +54,25 @@ function collapseWhitespace(value: string): string {
 }
 
 function sameOptions(left: WorkspaceHistoryOptions, right: WorkspaceHistoryOptions): boolean {
+  const leftJsonMode = left.jsonMode ?? (left.jsonAction === "minify" ? "minify" : "format");
+  const rightJsonMode = right.jsonMode ?? (right.jsonAction === "minify" ? "minify" : "format");
+  const leftJsonSortKeys = left.jsonSortKeys ?? left.jsonAction === "sort";
+  const rightJsonSortKeys = right.jsonSortKeys ?? right.jsonAction === "sort";
+
   return (
-    left.jsonAction === right.jsonAction &&
+    leftJsonMode === rightJsonMode &&
+    leftJsonSortKeys === rightJsonSortKeys &&
+    left.base64Mode === right.base64Mode &&
     left.liveMode === right.liveMode
   );
 }
 
 function sameViewState(left: WorkspaceHistoryViewState, right: WorkspaceHistoryViewState): boolean {
   return (
+    left.inputShowLineNumbers === right.inputShowLineNumbers &&
+    left.outputShowLineNumbers === right.outputShowLineNumbers &&
+    left.inputSoftWrap === right.inputSoftWrap &&
+    left.outputSoftWrap === right.outputSoftWrap &&
     left.jsonOutputMode === right.jsonOutputMode &&
     left.jsonTreeDepth === right.jsonTreeDepth &&
     left.jsonTreeCollapsedNodeLength === right.jsonTreeCollapsedNodeLength

@@ -10,7 +10,9 @@ import {
 } from "../src/lib/redis-lua-debug.ts";
 
 const toolsSource = readFileSync(new URL("../src/lib/tools.ts", import.meta.url), "utf8");
-const workspacePanel = readFileSync(new URL("../src/components/workspace/ToolWorkspacePanel.vue", import.meta.url), "utf8");
+const toolWorkspacePanel = readFileSync(new URL("../src/components/workspace/ToolWorkspacePanel.vue", import.meta.url), "utf8");
+const redisWorkspacePanel = readFileSync(new URL("../src/components/workspace/RedisLuaToolWorkspacePanel.vue", import.meta.url), "utf8");
+const workspacePanel = `${toolWorkspacePanel}\n${redisWorkspacePanel}`;
 const workspaceStore = readFileSync(new URL("../src/stores/workspace.ts", import.meta.url), "utf8");
 const appVue = readFileSync(new URL("../src/App.vue", import.meta.url), "utf8");
 const homeView = readFileSync(new URL("../src/views/HomeView.vue", import.meta.url), "utf8");
@@ -54,7 +56,8 @@ test("redis lua helper exposes stable defaults and result formatting", () => {
 });
 
 test("redis lua workspace panel exposes redis config and trace sections", () => {
-  assert.match(workspacePanel, /const isRedisLuaTool = computed/);
+  assert.match(toolWorkspacePanel, /import RedisLuaToolWorkspacePanel from "\.\/RedisLuaToolWorkspacePanel\.vue"/);
+  assert.match(toolWorkspacePanel, /case "redis-lua-debug-console":/);
   assert.match(workspacePanel, /Redis 地址/);
   assert.match(workspacePanel, /本地代理调试/);
   assert.match(workspacePanel, /真实 EVAL 校验/);
@@ -72,8 +75,17 @@ test("redis lua workspace store tracks dedicated state and invokes tauri command
 
 test("redis lua UI is promoted from home and has a dedicated execute label", () => {
   assert.match(homeView, /打开 Redis Lua 调试台/);
-  assert.match(actionBar, /runButtonLabel/);
-  assert.match(actionBar, /执行调试/);
-  assert.match(appVue, /搜索 Redis Lua、JSON、时间戳、URL、JWT/);
+  assert.match(redisWorkspacePanel, /label: workspaceStore\.redisLuaIsRunning \? "执行中\.\.\." : "执行调试"/);
+  assert.match(redisWorkspacePanel, /执行调试/);
+  assert.match(redisWorkspacePanel, /<WorkspaceActionRow :items="inputPrimaryActionItems" \/>/);
+  assert.match(redisWorkspacePanel, /<WorkspaceActionRow :items="inputSecondaryActionItems" \/>/);
+  assert.match(
+    redisWorkspacePanel,
+    /const outputActionItems[\s\S]*label: "行号"[\s\S]*label: "换行"[\s\S]*label: copyButtonLabel\.value/,
+  );
+  assert.match(
+    redisWorkspacePanel,
+    /<div class="workspace-action-bar">[\s\S]*<div class="workspace-action-bar-left" ?\/>[\s\S]*<div class="workspace-action-bar-right">[\s\S]*<WorkspaceActionRow :items="outputActionItems" \/>/,
+  );
   assert.match(appVue, /redis-config-grid/);
 });

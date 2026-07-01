@@ -1,4 +1,9 @@
-export type JsonTransformAction = "format" | "minify" | "sort";
+export type JsonTransformMode = "format" | "minify";
+export type JsonTransformAction = JsonTransformMode | "sort";
+export type JsonTransformOptions = {
+  mode?: JsonTransformMode;
+  sortKeys?: boolean;
+};
 
 function sortJsonValue(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -17,16 +22,29 @@ function sortJsonValue(value: unknown): unknown {
   return value;
 }
 
-export function applyJsonTransform(input: string, action: JsonTransformAction): string {
+function normalizeJsonTransformOptions(actionOrOptions: JsonTransformAction | JsonTransformOptions): Required<JsonTransformOptions> {
+  if (typeof actionOrOptions === "string") {
+    if (actionOrOptions === "sort") {
+      return { mode: "format", sortKeys: true };
+    }
+
+    return { mode: actionOrOptions, sortKeys: false };
+  }
+
+  return {
+    mode: actionOrOptions.mode ?? "format",
+    sortKeys: actionOrOptions.sortKeys ?? false,
+  };
+}
+
+export function applyJsonTransform(input: string, actionOrOptions: JsonTransformAction | JsonTransformOptions): string {
   const parsed = JSON.parse(input);
+  const { mode, sortKeys } = normalizeJsonTransformOptions(actionOrOptions);
+  const transformed = sortKeys ? sortJsonValue(parsed) : parsed;
 
-  if (action === "minify") {
-    return JSON.stringify(parsed);
+  if (mode === "minify") {
+    return JSON.stringify(transformed);
   }
 
-  if (action === "sort") {
-    return JSON.stringify(sortJsonValue(parsed), null, 2);
-  }
-
-  return JSON.stringify(parsed, null, 2);
+  return JSON.stringify(transformed, null, 2);
 }
