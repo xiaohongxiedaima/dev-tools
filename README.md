@@ -38,3 +38,24 @@ git push origin v0.1.0
 ```
 
 The workflow will build the Tauri bundles and upload the generated assets to GitHub Releases for that tag.
+
+For macOS builds, the workflow now supports a **free Apple account signing path**:
+
+Required macOS signing secrets:
+
+- `APPLE_CERTIFICATE`
+- `APPLE_CERTIFICATE_PASSWORD`
+- `KEYCHAIN_PASSWORD`
+
+Optional notarization secrets for a paid Apple Developer account:
+
+- `APPLE_ID`
+- `APPLE_PASSWORD`
+- `APPLE_TEAM_ID`
+
+Behavior:
+
+- With only the required signing secrets, the macOS app is **signed but not notarized**.
+- With the optional notarization secrets added, the macOS app is **signed and notarized**.
+
+Note that free-account signing improves things, but downloaded `.app` or `.dmg` files can still be blocked by Gatekeeper on another Mac because notarization is not included.
