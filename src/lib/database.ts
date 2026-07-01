@@ -8,6 +8,20 @@ export type CommandPreset = {
   description: string;
 };
 
+export type WorkspaceHistoryRecord = {
+  id: number;
+  toolId: string;
+  sourceType: "manual" | "auto";
+  title: string;
+  inputValue: string;
+  outputValue: string;
+  snapshotJson: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WorkspaceHistoryRecordInput = Omit<WorkspaceHistoryRecord, "id">;
+
 const DATABASE_URL = "sqlite:dev-tools.db";
 
 const SEED_PRESETS = [
@@ -54,6 +68,20 @@ export async function initializeDatabase(): Promise<void> {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS workspace_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tool_id TEXT NOT NULL,
+      source_type TEXT NOT NULL CHECK (source_type IN ('manual', 'auto')),
+      title TEXT NOT NULL,
+      input_value TEXT NOT NULL,
+      output_value TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
   for (const preset of SEED_PRESETS) {
     await db.execute(
       `INSERT OR IGNORE INTO command_presets (name, category, command, description)
@@ -69,6 +97,64 @@ export async function loadCommandPresets(): Promise<CommandPreset[]> {
     `SELECT id, name, category, command, description
      FROM command_presets
      ORDER BY category, name`,
+  );
+}
+
+export async function insertWorkspaceHistoryRecord(input: WorkspaceHistoryRecordInput): Promise<void> {
+  const db = await getDatabase();
+
+  await db.execute(
+    `INSERT INTO workspace_history (
+       tool_id, source_type, title, input_value, output_value, snapshot_json, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      input.toolId,
+      input.sourceType,
+      input.title,
+      input.inputValue,
+      input.outputValue,
+      input.snapshotJson,
+      input.createdAt,
+      input.updatedAt,
+    ],
+  );
+}
+
+export async function loadWorkspaceHistoryRecords(): Promise<WorkspaceHistoryRecord[]> {
+  const db = await getDatabase();
+
+  return db.select<WorkspaceHistoryRecord[]>(
+    `SELECT
+       id,
+       tool_id AS toolId,
+       source_type AS sourceType,
+       title,
+       input_value AS inputValue,
+       output_value AS outputValue,
+       snapshot_json AS snapshotJson,
+       created_at AS createdAt,
+       updated_at AS updatedAt
+     FROM workspace_history
+     ORDER BY datetime(created_at) DESC, id DESC`,
+  );
+}
+
+export async function trimWorkspaceHistory(sourceType: WorkspaceHistoryRecord["sourceType"], keepCount: number): Promise<void> {
+  const db = await getDatabase();
+  const safeKeepCount = Math.max(0, keepCount);
+
+  await db.execute(
+    `DELETE FROM workspace_history
+     WHERE source_type = $1
+       AND id IN (
+         SELECT id
+         FROM workspace_history
+         WHERE source_type = $1
+         ORDER BY datetime(created_at) DESC, id DESC
+         LIMIT -1 OFFSET $2
+       )`,
+    [sourceType, safeKeepCount],
   );
 }
 
