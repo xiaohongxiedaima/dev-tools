@@ -40,20 +40,24 @@ function openTool(toolId: string) {
           type="button"
           @click="openTool(tool.id)"
         >
-          <span>
-            <strong>{{ tool.name }}</strong>
+          <span class="tool-nav-copy">
+            <span class="tool-nav-top-row">
+              <span class="tool-nav-title-row">
+                <strong>{{ tool.name }}</strong>
+                <span class="mini-badge">{{ tool.tags[0] }}</span>
+              </span>
+              <span class="tool-nav-actions">
+                <button
+                  class="favorite-toggle"
+                  type="button"
+                  :aria-label="workspaceStore.favoriteToolIds.includes(tool.id) ? '取消收藏工具' : '收藏工具'"
+                  @click.stop="workspaceStore.toggleFavorite(tool.id)"
+                >
+                  {{ workspaceStore.favoriteToolIds.includes(tool.id) ? "★" : "☆" }}
+                </button>
+              </span>
+            </span>
             <small>{{ tool.description }}</small>
-          </span>
-          <span class="tool-nav-actions">
-            <span class="mini-badge">{{ tool.tags[0] }}</span>
-            <button
-              class="favorite-toggle"
-              type="button"
-              :aria-label="workspaceStore.favoriteToolIds.includes(tool.id) ? '取消收藏工具' : '收藏工具'"
-              @click.stop="workspaceStore.toggleFavorite(tool.id)"
-            >
-              {{ workspaceStore.favoriteToolIds.includes(tool.id) ? "★" : "☆" }}
-            </button>
           </span>
         </button>
       </section>

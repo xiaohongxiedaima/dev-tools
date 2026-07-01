@@ -45,6 +45,9 @@ type DatabaseApi = {
   ) => Promise<void>;
   loadWorkspaceHistoryRecords: () => Promise<WorkspaceHistoryRecord[]>;
   trimWorkspaceHistory: (sourceType: WorkspaceHistoryRecord["source_type"], keepCount: number) => Promise<void>;
+  touchWorkspaceHistoryRecord: (id: number, timestamp: string) => Promise<void>;
+  deleteWorkspaceHistoryRecord: (id: number) => Promise<void>;
+  clearWorkspaceHistory: (sourceType: WorkspaceHistoryRecord["source_type"], toolId: string) => Promise<void>;
 };
 
 type DatabaseApiOptions = {
@@ -224,6 +227,30 @@ export function createDatabaseApi(options: DatabaseApiOptions = {}): DatabaseApi
         [sourceType, safeKeepCount],
       );
     },
+
+    async touchWorkspaceHistoryRecord(id: number, timestamp: string): Promise<void> {
+      const db = await getDatabase();
+      await db.execute(
+        `UPDATE workspace_history
+         SET created_at = $1, updated_at = $1
+         WHERE id = $2`,
+        [timestamp, id],
+      );
+    },
+
+    async deleteWorkspaceHistoryRecord(id: number): Promise<void> {
+      const db = await getDatabase();
+      await db.execute(`DELETE FROM workspace_history WHERE id = $1`, [id]);
+    },
+
+    async clearWorkspaceHistory(sourceType: WorkspaceHistoryRecord["source_type"], toolId: string): Promise<void> {
+      const db = await getDatabase();
+      await db.execute(
+        `DELETE FROM workspace_history
+         WHERE source_type = $1 AND tool_id = $2`,
+        [sourceType, toolId],
+      );
+    },
   };
 }
 
@@ -234,5 +261,8 @@ export const loadCommandPresets = databaseApi.loadCommandPresets;
 export const insertWorkspaceHistoryRecord = databaseApi.insertWorkspaceHistoryRecord;
 export const loadWorkspaceHistoryRecords = databaseApi.loadWorkspaceHistoryRecords;
 export const trimWorkspaceHistory = databaseApi.trimWorkspaceHistory;
+export const touchWorkspaceHistoryRecord = databaseApi.touchWorkspaceHistoryRecord;
+export const deleteWorkspaceHistoryRecord = databaseApi.deleteWorkspaceHistoryRecord;
+export const clearWorkspaceHistory = databaseApi.clearWorkspaceHistory;
 
 export { DATABASE_URL };

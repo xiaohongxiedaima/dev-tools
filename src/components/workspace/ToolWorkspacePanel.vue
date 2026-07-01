@@ -66,11 +66,10 @@ async function searchOutputPrevious() {
 
 <template>
   <section class="workspace-main">
-    <header class="workspace-header shell-card">
+    <header class="workspace-header compact shell-card">
       <div>
         <p class="eyebrow">{{ workspaceStore.activeTool.categoryName }}</p>
         <h1>{{ workspaceStore.activeTool.name }}</h1>
-        <p class="summary narrow">{{ workspaceStore.activeTool.description }}</p>
       </div>
 
       <ToolActionBar />
@@ -78,11 +77,10 @@ async function searchOutputPrevious() {
 
     <section class="workspace-panels">
       <article class="editor-panel shell-card">
-        <div class="panel-header">
+        <div class="panel-header compact">
           <div>
             <h2>输入区</h2>
-            <p>保留原始内容，适合粘贴请求体、时间值、URL 或待转换文本。</p>
-            <div v-if="isJsonTool" class="json-action-row">
+            <div v-if="isJsonTool" class="json-input-header-row">
               <button
                 class="ghost-button small"
                 type="button"
@@ -121,14 +119,15 @@ async function searchOutputPrevious() {
               <button class="ghost-button small" type="button" @click="searchInputNext">下一个</button>
             </div>
           </div>
-          <label class="toggle-line">
-            <input
-              :checked="workspaceStore.liveMode"
-              type="checkbox"
-              @change="workspaceStore.setLiveMode(($event.target as HTMLInputElement).checked)"
-            />
-            <span>实时预览</span>
-          </label>
+          <button
+            class="ghost-button small"
+            :class="{ 'json-action-active': workspaceStore.liveMode }"
+            type="button"
+            :aria-pressed="workspaceStore.liveMode"
+            @click="workspaceStore.setLiveMode(!workspaceStore.liveMode)"
+          >
+            实时预览
+          </button>
         </div>
 
         <CodeEditor
@@ -136,7 +135,9 @@ async function searchOutputPrevious() {
           :model-value="workspaceStore.inputValue"
           :language="isJsonTool ? 'json' : 'text'"
           :placeholder="workspaceStore.activeTool.placeholder"
+          :show-line-numbers="workspaceStore.showLineNumbers"
           @update:model-value="workspaceStore.setInputValue"
+          @blur="workspaceStore.saveAutoHistoryOnInputBlur"
         />
       </article>
 
@@ -144,7 +145,6 @@ async function searchOutputPrevious() {
         <div class="panel-header">
           <div>
             <h2>输出区</h2>
-            <p>展示格式化结果、转换结果或工具处理后的预览内容。</p>
             <div class="json-output-action-row">
               <button class="ghost-button small" type="button" @click="copyOutput">{{ copyButtonLabel }}</button>
               <template v-if="isJsonTool">
@@ -218,6 +218,7 @@ async function searchOutputPrevious() {
             :model-value="workspaceStore.outputPreview"
             :language="isJsonTool ? 'json' : 'text'"
             :readonly="true"
+            :show-line-numbers="workspaceStore.showLineNumbers"
           />
         </div>
       </article>

@@ -1,14 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
+import { readFileSync } from "node:fs";
 import {
   AUTO_HISTORY_LIMIT,
   MANUAL_HISTORY_LIMIT,
   buildHistoryPreview,
   createHistorySnapshot,
   isSameHistorySnapshot,
+  parseWorkspaceHistorySnapshot,
 } from "../src/lib/workspace-history.ts";
 import { createDatabaseApi } from "../src/lib/database.ts";
+
+const workspaceStore = readFileSync(new URL("../src/stores/workspace.ts", import.meta.url), "utf8");
 
 function createSqliteAdapter() {
   const database = new DatabaseSync(":memory:");
@@ -258,4 +262,156 @@ test("workspace history insert defaults updated_at from created_at and accepts c
     created_at: "2026-07-01T09:03:00.000Z",
     updated_at: "2026-07-01T09:03:00.000Z",
   });
+});
+
+test("workspace history APIs support deleting one record and clearing one source type for a tool", async () => {
+  const { adapter } = createSqliteAdapter();
+  const api = createDatabaseApi({
+    databaseUrl: "sqlite:test.db",
+    loadDatabase: async () => adapter,
+  });
+
+  await api.initializeDatabase();
+  await api.insertWorkspaceHistoryRecord(createHistoryRecord({
+    tool_id: "json-formatter",
+    source_type: "manual",
+    title: "Delete me",
+    created_at: "2026-07-01T09:00:00.000Z",
+  }));
+  await api.insertWorkspaceHistoryRecord(createHistoryRecord({
+    tool_id: "json-formatter",
+    source_type: "manual",
+    title: "Keep auto for now",
+    created_at: "2026-07-01T09:01:00.000Z",
+  }));
+  await api.insertWorkspaceHistoryRecord(createHistoryRecord({
+    tool_id: "json-formatter",
+    source_type: "auto",
+    title: "Clear me",
+    created_at: "2026-07-01T09:02:00.000Z",
+  }));
+  await api.insertWorkspaceHistoryRecord(createHistoryRecord({
+    tool_id: "timestamp",
+    source_type: "auto",
+    title: "Other tool auto",
+    created_at: "2026-07-01T09:03:00.000Z",
+  }));
+
+  const beforeDelete = await api.loadWorkspaceHistoryRecords();
+  const deleteTarget = beforeDelete.find((record) => record.title === "Delete me");
+  assert.ok(deleteTarget);
+
+  await api.deleteWorkspaceHistoryRecord(deleteTarget.id);
+
+  const afterDelete = await api.loadWorkspaceHistoryRecords();
+  assert.equal(afterDelete.some((record) => record.title === "Delete me"), false);
+
+  await api.clearWorkspaceHistory("auto", "json-formatter");
+
+  const afterClear = await api.loadWorkspaceHistoryRecords();
+  assert.equal(afterClear.some((record) => record.title === "Clear me"), false);
+  assert.equal(afterClear.some((record) => record.title === "Other tool auto"), true);
+});
+
+test("workspace history APIs can promote an existing record without inserting a duplicate", async () => {
+  const { adapter } = createSqliteAdapter();
+  const api = createDatabaseApi({
+    databaseUrl: "sqlite:test.db",
+    loadDatabase: async () => adapter,
+  });
+
+  await api.initializeDatabase();
+  await api.insertWorkspaceHistoryRecord(createHistoryRecord({
+    source_type: "auto",
+    title: "Older auto",
+    created_at: "2026-07-01T09:00:00.000Z",
+  }));
+  await api.insertWorkspaceHistoryRecord(createHistoryRecord({
+    source_type: "auto",
+    title: "Newer auto",
+    created_at: "2026-07-01T09:01:00.000Z",
+  }));
+
+  const beforeTouch = await api.loadWorkspaceHistoryRecords();
+  const olderAuto = beforeTouch.find((record) => record.title === "Older auto");
+  assert.ok(olderAuto);
+  assert.equal(beforeTouch.length, 2);
+
+  await api.touchWorkspaceHistoryRecord(olderAuto.id, "2026-07-01T09:02:00.000Z");
+
+  const afterTouch = await api.loadWorkspaceHistoryRecords();
+  assert.equal(afterTouch.length, 2);
+  assert.equal(afterTouch[0].title, "Older auto");
+  assert.equal(afterTouch[0].created_at, "2026-07-01T09:02:00.000Z");
+  assert.equal(afterTouch[0].updated_at, "2026-07-01T09:02:00.000Z");
+});
+
+test("workspace store declares separate manual and auto history state", () => {
+  assert.match(workspaceStore, /const manualHistory = ref/);
+  assert.match(workspaceStore, /const autoHistory = ref/);
+  assert.match(workspaceStore, /const lastAutoHistorySnapshot = ref/);
+  assert.match(workspaceStore, /const showLineNumbers = ref\(false\)/);
+});
+
+test("workspace store exposes history save restore and auto-save actions", () => {
+  assert.match(workspaceStore, /async function saveCurrentHistoryEntry\(/);
+  assert.match(workspaceStore, /async function restoreHistoryEntry\(/);
+  assert.match(workspaceStore, /function saveAutoHistoryOnInputBlur\(/);
+  assert.match(workspaceStore, /function findMatchingAutoHistoryRecord\(/);
+  assert.match(workspaceStore, /async function deleteHistoryEntry\(/);
+  assert.match(workspaceStore, /async function clearHistoryEntries\(/);
+  assert.match(workspaceStore, /function setShowLineNumbers\(/);
+});
+
+test("workspace store uses a JSON default input value and skips auto-saving tool defaults", () => {
+  assert.match(workspaceStore, /function getToolDefaultInputValue\(tool: ToolDefinition\)/);
+  assert.match(workspaceStore, /tool\.id === "json-formatter" \? "\{\}" : tool\.placeholder/);
+  assert.match(workspaceStore, /const inputValue = ref\(getToolDefaultInputValue\(getTool\(defaultToolId\) \?\? tools\[0\]\)\)/);
+  assert.match(
+    workspaceStore,
+    /sourceType === "auto"[\s\S]*snapshot\.inputValue === getToolDefaultInputValue\(getTool\(snapshot\.toolId\) \?\? activeTool\.value\)/,
+  );
+});
+
+test("workspace store promotes existing auto history instead of inserting duplicates", () => {
+  assert.match(workspaceStore, /const matchingRecord = findMatchingAutoHistoryRecord\(snapshot\)/);
+  assert.match(workspaceStore, /await touchWorkspaceHistoryRecord\(matchingRecord\.id, new Date\(\)\.toISOString\(\)\)/);
+  assert.match(workspaceStore, /if \(autoHistory\.value\[0\]\?\.id === matchingRecord\.id\) \{\s*return;\s*\}/);
+});
+
+test("workspace store restores snapshot fields back into live tool state", () => {
+  assert.match(workspaceStore, /applyToolStateDefaults\(tool\);/);
+  assert.match(workspaceStore, /activeToolId\.value = snapshot\.toolId/);
+  assert.match(workspaceStore, /inputValue\.value = snapshot\.inputValue/);
+  assert.match(workspaceStore, /manualOutput\.value = tool\.sampleOutput/);
+  assert.doesNotMatch(workspaceStore, /jsonOutputMode\.value = snapshot\.viewState\.jsonOutputMode/);
+});
+
+test("workspace bootstrap loads presets and history together", () => {
+  assert.match(
+    workspaceStore,
+    /await Promise\.all\(\[refreshPresets\(\), reloadWorkspaceHistory\(\)\]\)|await refreshPresets\(\)[\s\S]*await reloadWorkspaceHistory\(\)/,
+  );
+});
+
+test("workspace inspector opens manual and auto history sections by default", () => {
+  assert.match(workspaceStore, /openInspectorSections = ref<string\[]>\(\[[\s\S]*"manual-history"[\s\S]*"auto-history"/);
+});
+
+test("history snapshot parser fills missing options and view state defaults", () => {
+  assert.deepEqual(
+    parseWorkspaceHistorySnapshot('{"toolId":"json-formatter","inputValue":"{}","outputValue":"{}","savedAt":"2026-07-01T09:00:00.000Z"}'),
+    {
+      toolId: "json-formatter",
+      inputValue: "{}",
+      outputValue: "{}",
+      savedAt: "2026-07-01T09:00:00.000Z",
+      options: {},
+      viewState: {},
+    },
+  );
+});
+
+test("history snapshot parser rejects invalid payloads", () => {
+  assert.throws(() => parseWorkspaceHistorySnapshot('{"toolId":null}'));
 });

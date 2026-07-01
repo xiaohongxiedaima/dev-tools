@@ -1,7 +1,29 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { DATABASE_URL, initializeDatabase, loadCommandPresets, type CommandPreset } from "../lib/database";
+import {
+  DATABASE_URL,
+  clearWorkspaceHistory,
+  deleteWorkspaceHistoryRecord,
+  initializeDatabase,
+  insertWorkspaceHistoryRecord,
+  loadCommandPresets,
+  loadWorkspaceHistoryRecords,
+  touchWorkspaceHistoryRecord,
+  trimWorkspaceHistory,
+  type CommandPreset,
+  type WorkspaceHistoryRecord,
+} from "../lib/database";
 import { applyJsonTransform, type JsonTransformAction } from "../lib/json-tools";
+import {
+  AUTO_HISTORY_LIMIT,
+  MANUAL_HISTORY_LIMIT,
+  buildHistoryPreview,
+  createHistorySnapshot,
+  isSameHistorySnapshot,
+  parseWorkspaceHistorySnapshot,
+  type WorkspaceHistorySnapshot,
+  type WorkspaceHistorySource,
+} from "../lib/workspace-history";
 import {
   defaultFavoriteToolIds,
   defaultToolId,
@@ -20,14 +42,22 @@ function definedTools(toolIds: string[]): ToolDefinition[] {
     .filter((tool): tool is ToolDefinition => tool !== undefined);
 }
 
+function getToolDefaultInputValue(tool: ToolDefinition) {
+  return tool.id === "json-formatter" ? "{}" : tool.placeholder;
+}
+
 export const useWorkspaceStore = defineStore("workspace", () => {
   const presets = ref<CommandPreset[]>([]);
+  const manualHistory = ref<WorkspaceHistoryRecord[]>([]);
+  const autoHistory = ref<WorkspaceHistoryRecord[]>([]);
+  const lastAutoHistorySnapshot = ref<WorkspaceHistorySnapshot | null>(null);
   const isLoading = ref(true);
   const isInitializing = ref(false);
   const errorMessage = ref("");
   const searchTerm = ref("");
   const activeToolId = ref(defaultToolId);
-  const inputValue = ref(getTool(defaultToolId)?.placeholder ?? "");
+  const inputValue = ref(getToolDefaultInputValue(getTool(defaultToolId) ?? tools[0]));
+  const showLineNumbers = ref(false);
   const liveMode = ref(true);
   const jsonAction = ref<JsonTransformAction>("format");
   const jsonOutputMode = ref<"text" | "tree">("text");
@@ -37,7 +67,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const recentToolHistory = ref<string[]>([...recentToolIds]);
   const favoritePresetNames = ref(["API health check", "Open SQLite shell"]);
   const inspectorVisible = ref(false);
-  const openInspectorSections = ref<string[]>(["status", "recent", "favorites", "presets", "tips"]);
+  const openInspectorSections = ref<string[]>([
+    "manual-history",
+    "auto-history",
+    "recent",
+    "favorites",
+    "presets",
+    "tips",
+  ]);
   const manualOutput = ref(getTool(defaultToolId)?.sampleOutput ?? "");
 
   const activeTool = computed(() => getTool(activeToolId.value) ?? tools[0]);
@@ -131,17 +168,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     searchTerm.value = value;
   }
 
+  function applyToolStateDefaults(tool: ToolDefinition) {
+    activeToolId.value = tool.id;
+    inputValue.value = getToolDefaultInputValue(tool);
+    manualOutput.value = tool.sampleOutput;
+    liveMode.value = true;
+    jsonAction.value = "format";
+    jsonOutputMode.value = "text";
+    jsonTreeDepth.value = Number.POSITIVE_INFINITY;
+    jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
+  }
+
   function setActiveTool(toolId: string) {
     const tool = getTool(toolId) ?? tools[0];
-    activeToolId.value = tool.id;
-    inputValue.value = tool.placeholder;
-    if (tool.id === "json-formatter") {
-      jsonAction.value = "format";
-      jsonOutputMode.value = "text";
-      jsonTreeDepth.value = Number.POSITIVE_INFINITY;
-      jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
-    }
-    manualOutput.value = tool.sampleOutput;
+    applyToolStateDefaults(tool);
     rememberTool(tool.id);
   }
 
@@ -151,6 +191,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   function setLiveMode(value: boolean) {
     liveMode.value = value;
+  }
+
+  function setShowLineNumbers(value: boolean) {
+    showLineNumbers.value = value;
   }
 
   function setJsonAction(action: JsonTransformAction) {
@@ -209,6 +253,133 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     presets.value = await loadCommandPresets();
   }
 
+  function createCurrentHistorySnapshot(): WorkspaceHistorySnapshot {
+    return createHistorySnapshot({
+      toolId: activeToolId.value,
+      inputValue: inputValue.value,
+      outputValue: outputPreview.value,
+      options: {
+        jsonAction: jsonAction.value,
+        liveMode: liveMode.value,
+      },
+      viewState: {
+        jsonOutputMode: jsonOutputMode.value,
+        jsonTreeDepth: jsonTreeDepth.value,
+        jsonTreeCollapsedNodeLength: jsonTreeCollapsedNodeLength.value,
+      },
+    });
+  }
+
+  async function reloadWorkspaceHistory() {
+    const records = await loadWorkspaceHistoryRecords();
+    manualHistory.value = records.filter((record) => record.source_type === "manual");
+    autoHistory.value = records.filter((record) => record.source_type === "auto");
+    if (!autoHistory.value[0]) {
+      lastAutoHistorySnapshot.value = null;
+      return;
+    }
+
+    try {
+      lastAutoHistorySnapshot.value = parseWorkspaceHistorySnapshot(autoHistory.value[0].snapshot_json);
+    } catch {
+      lastAutoHistorySnapshot.value = null;
+    }
+  }
+
+  function findMatchingAutoHistoryRecord(snapshot: WorkspaceHistorySnapshot) {
+    for (const record of autoHistory.value) {
+      try {
+        if (isSameHistorySnapshot(parseWorkspaceHistorySnapshot(record.snapshot_json), snapshot)) {
+          return record;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  async function saveCurrentHistoryEntry(sourceType: WorkspaceHistorySource = "manual") {
+    const snapshot = createCurrentHistorySnapshot();
+
+    if (
+      sourceType === "auto" &&
+      (!snapshot.inputValue.trim() ||
+        snapshot.inputValue === getToolDefaultInputValue(getTool(snapshot.toolId) ?? activeTool.value))
+    ) {
+      return;
+    }
+
+    if (sourceType === "auto") {
+      const matchingRecord = findMatchingAutoHistoryRecord(snapshot);
+
+      if (matchingRecord) {
+        if (autoHistory.value[0]?.id === matchingRecord.id) {
+          return;
+        }
+
+        await touchWorkspaceHistoryRecord(matchingRecord.id, new Date().toISOString());
+        await reloadWorkspaceHistory();
+        return;
+      }
+    }
+
+    if (
+      sourceType === "auto" &&
+      lastAutoHistorySnapshot.value &&
+      isSameHistorySnapshot(lastAutoHistorySnapshot.value, snapshot)
+    ) {
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    snapshot.savedAt = createdAt;
+
+    await insertWorkspaceHistoryRecord({
+      tool_id: snapshot.toolId,
+      source_type: sourceType,
+      title: buildHistoryPreview(snapshot.inputValue, snapshot.outputValue) || activeTool.value.name,
+      input_value: snapshot.inputValue,
+      output_value: snapshot.outputValue,
+      snapshot_json: JSON.stringify(snapshot),
+      created_at: createdAt,
+    });
+    await trimWorkspaceHistory(sourceType, sourceType === "manual" ? MANUAL_HISTORY_LIMIT : AUTO_HISTORY_LIMIT);
+    await reloadWorkspaceHistory();
+  }
+
+  async function restoreHistoryEntry(record: WorkspaceHistoryRecord) {
+    const snapshot = parseWorkspaceHistorySnapshot(record.snapshot_json);
+    const tool = getTool(snapshot.toolId);
+
+    if (!tool) {
+      throw new Error(`Cannot restore workspace history for missing tool: ${snapshot.toolId}`);
+    }
+
+    applyToolStateDefaults(tool);
+    activeToolId.value = snapshot.toolId;
+    inputValue.value = snapshot.inputValue;
+    manualOutput.value = tool.sampleOutput;
+    rememberTool(snapshot.toolId);
+  }
+
+  async function deleteHistoryEntry(id: number) {
+    await deleteWorkspaceHistoryRecord(id);
+    await reloadWorkspaceHistory();
+  }
+
+  async function clearHistoryEntries(sourceType: WorkspaceHistorySource) {
+    await clearWorkspaceHistory(sourceType, activeToolId.value);
+    await reloadWorkspaceHistory();
+  }
+
+  function saveAutoHistoryOnInputBlur() {
+    void saveCurrentHistoryEntry("auto").catch((error) => {
+      errorMessage.value = error instanceof Error ? error.message : String(error);
+    });
+  }
+
   async function bootstrapWorkspace() {
     if (isInitializing.value) {
       return;
@@ -219,7 +390,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
     try {
       await initializeDatabase();
-      await refreshPresets();
+      await Promise.all([refreshPresets(), reloadWorkspaceHistory()]);
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : String(error);
     } finally {
@@ -231,6 +402,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   return {
     activeTool,
     activeToolId,
+    autoHistory,
     bootstrapStatus,
     bootstrapWorkspace,
     errorMessage,
@@ -249,17 +421,26 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     jsonTreeCollapsedNodeLength,
     jsonTreeRenderKey,
     jsonTreeData,
+    lastAutoHistorySnapshot,
     liveMode,
+    manualHistory,
     outputPreview,
     presets,
     recentTools,
+    deleteHistoryEntry,
+    restoreHistoryEntry,
     searchTerm,
+    showLineNumbers,
     isInspectorSectionOpen,
+    clearHistoryEntries,
+    saveCurrentHistoryEntry,
+    saveAutoHistoryOnInputBlur,
     setActiveTool,
     setInputValue,
     setJsonAction,
     setJsonOutputMode,
     setLiveMode,
+    setShowLineNumbers,
     setSearchTerm,
     expandJsonTree,
     collapseJsonTree,

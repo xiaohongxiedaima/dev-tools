@@ -1,9 +1,54 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useWorkspaceStore } from "../../stores/workspace";
 
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
+const manualHistory = computed(() =>
+  workspaceStore.manualHistory.filter((entry) => entry.tool_id === workspaceStore.activeToolId).slice(0, 5),
+);
+const autoHistory = computed(() =>
+  workspaceStore.autoHistory.filter((entry) => entry.tool_id === workspaceStore.activeToolId).slice(0, 10),
+);
+
+function formatHistoryTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN", { hour12: false });
+}
+
+async function restoreHistoryEntry(historyId: number, sourceType: "manual" | "auto") {
+  const historyList = sourceType === "manual" ? manualHistory.value : autoHistory.value;
+  const record = historyList.find((item) => item.id === historyId);
+
+  if (!record) {
+    workspaceStore.errorMessage = "未找到对应的历史记录。";
+    return;
+  }
+
+  try {
+    await workspaceStore.restoreHistoryEntry(record);
+    void router.push({ name: "workspace", params: { toolId: workspaceStore.activeToolId } });
+  } catch (error) {
+    workspaceStore.errorMessage = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function deleteHistoryEntry(historyId: number) {
+  try {
+    await workspaceStore.deleteHistoryEntry(historyId);
+  } catch (error) {
+    workspaceStore.errorMessage = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function clearHistoryEntries(sourceType: "manual" | "auto") {
+  try {
+    await workspaceStore.clearHistoryEntries(sourceType);
+  } catch (error) {
+    workspaceStore.errorMessage = error instanceof Error ? error.message : String(error);
+  }
+}
 
 function openTool(toolId: string) {
   workspaceStore.setActiveTool(toolId);
@@ -14,17 +59,62 @@ function openTool(toolId: string) {
 <template>
   <aside class="inspector shell-card">
     <section class="inspector-section">
-      <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('status')">
-        <span>状态面板</span>
-        <span>{{ workspaceStore.isInspectorSectionOpen("status") ? "收起" : "展开" }}</span>
-      </button>
-      <div v-if="workspaceStore.isInspectorSectionOpen('status')" class="inspector-body">
-        <p>这里专门放错误、说明、示例和辅助信息，不挤占中间主工作区。</p>
-        <ul class="bullet-list">
-          <li>顶部显示状态、错误和当前工具摘要</li>
-          <li>中部放示例、操作提示和工具规则</li>
-          <li>底部保留历史记录与常用预设入口</li>
-        </ul>
+      <div class="history-header-row">
+        <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('manual-history')">
+          <span>手动保存</span>
+          <span>{{ workspaceStore.isInspectorSectionOpen("manual-history") ? "收起" : "展开" }}</span>
+        </button>
+        <button class="ghost-button small" type="button" :disabled="manualHistory.length === 0" @click="clearHistoryEntries('manual')">
+          一键清空
+        </button>
+      </div>
+      <div v-if="workspaceStore.isInspectorSectionOpen('manual-history')" class="inspector-body">
+        <div v-if="manualHistory.length > 0" class="history-list">
+          <article
+            v-for="entry in manualHistory"
+            :key="entry.id"
+            class="history-card"
+          >
+            <button class="history-open-button" type="button" @click="restoreHistoryEntry(entry.id, 'manual')">
+              <strong>{{ entry.title || "未命名历史记录" }}</strong>
+              <div class="history-meta-row">
+                <time>{{ formatHistoryTime(entry.created_at) }}</time>
+                <button class="history-inline-action" type="button" @click.stop="deleteHistoryEntry(entry.id)">删除</button>
+              </div>
+            </button>
+          </article>
+        </div>
+        <p v-else class="history-empty">当前工具还没有手动保存的历史记录。</p>
+      </div>
+    </section>
+
+    <section class="inspector-section">
+      <div class="history-header-row">
+        <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('auto-history')">
+          <span>自动输入历史</span>
+          <span>{{ workspaceStore.isInspectorSectionOpen("auto-history") ? "收起" : "展开" }}</span>
+        </button>
+        <button class="ghost-button small" type="button" :disabled="autoHistory.length === 0" @click="clearHistoryEntries('auto')">
+          一键清空
+        </button>
+      </div>
+      <div v-if="workspaceStore.isInspectorSectionOpen('auto-history')" class="inspector-body">
+        <div v-if="autoHistory.length > 0" class="history-list">
+          <article
+            v-for="entry in autoHistory"
+            :key="entry.id"
+            class="history-card"
+          >
+            <button class="history-open-button" type="button" @click="restoreHistoryEntry(entry.id, 'auto')">
+              <strong>{{ entry.title || "未命名历史记录" }}</strong>
+              <div class="history-meta-row">
+                <time>{{ formatHistoryTime(entry.created_at) }}</time>
+                <button class="history-inline-action" type="button" @click.stop="deleteHistoryEntry(entry.id)">删除</button>
+              </div>
+            </button>
+          </article>
+        </div>
+        <p v-else class="history-empty">当前工具的输入内容会在停顿后自动记录到这里。</p>
       </div>
     </section>
 

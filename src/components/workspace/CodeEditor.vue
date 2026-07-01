@@ -13,16 +13,19 @@ const props = withDefaults(
     readonly?: boolean;
     language?: "json" | "text";
     placeholder?: string;
+    showLineNumbers?: boolean;
   }>(),
   {
     readonly: false,
     language: "text",
     placeholder: "",
+    showLineNumbers: false,
   },
 );
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
+  blur: [];
 }>();
 
 const lang = computed(() => (props.language === "json" ? json() : undefined));
@@ -35,6 +38,21 @@ function updateValue(value?: string | Text) {
 
 function handleReady(payload: { view: EditorView }) {
   editorView.value = payload.view;
+}
+
+function handleFocusOut(event: FocusEvent) {
+  const currentTarget = event.currentTarget;
+  const relatedTarget = event.relatedTarget;
+
+  if (
+    currentTarget instanceof HTMLElement &&
+    relatedTarget instanceof Node &&
+    currentTarget.contains(relatedTarget)
+  ) {
+    return;
+  }
+
+  emit("blur");
 }
 
 function findNextMatch(query: string) {
@@ -95,7 +113,11 @@ defineExpose({
 </script>
 
 <template>
-  <div class="code-editor-shell">
+  <div
+    class="code-editor-shell"
+    :class="{ 'code-editor-shell--hide-line-numbers': !props.showLineNumbers }"
+    @focusout="handleFocusOut"
+  >
     <CodeMirror
       :model-value="props.modelValue"
       basic
@@ -110,3 +132,9 @@ defineExpose({
     />
   </div>
 </template>
+
+<style scoped>
+.code-editor-shell--hide-line-numbers :deep(.cm-gutters) {
+  display: none;
+}
+</style>

@@ -26,7 +26,7 @@ export const toolCategories: ToolCategory[] = [
         name: "JSON 格式化",
         description: "格式化、压缩和校验 JSON 内容。",
         tags: ["json", "pretty", "validate"],
-        placeholder: '{\n  "service": "auth-api",\n  "status": "ok"\n}',
+        placeholder: "{}",
         sampleOutputTitle: "Formatted output",
         sampleOutput: '{\n  "service": "auth-api",\n  "status": "ok"\n}',
       },
@@ -166,7 +166,7 @@ export const defaultFavoriteToolIds = ["json-formatter", "url-encode"];
 export const workspaceTips = [
   "把格式化、压缩、复制、交换输入输出统一放在工具操作条里。",
   "输入区默认实时转换，复杂工具支持切换为手动执行。",
-  "错误信息固定放在右侧状态面板顶部，避免遮挡输入内容。",
+  "右侧历史中心专门放手动保存和自动输入历史，避免挤占主工作区。",
 ];
 
 export function getTool(toolId: string): ToolDefinition | undefined {

@@ -99,8 +99,8 @@ onMounted(async () => {
             v-if="route.name === 'workspace'"
             class="icon-button"
             type="button"
-            :aria-label="workspaceStore.inspectorVisible ? '隐藏右侧状态面板' : '显示右侧状态面板'"
-            :title="workspaceStore.inspectorVisible ? '隐藏右侧状态面板' : '显示右侧状态面板'"
+            :aria-label="workspaceStore.inspectorVisible ? '隐藏右侧历史中心' : '显示右侧历史中心'"
+            :title="workspaceStore.inspectorVisible ? '隐藏右侧历史中心' : '显示右侧历史中心'"
             @click="workspaceStore.toggleInspectorVisibility()"
           >
             {{ workspaceStore.inspectorVisible ? "⟫" : "⟪" }}
@@ -507,7 +507,6 @@ p {
 .mini-badge {
   display: inline-flex;
   width: fit-content;
-  margin-bottom: 10px;
   padding: 0.25rem 0.55rem;
   border-radius: 999px;
   background: rgba(59, 130, 246, 0.14);
@@ -540,18 +539,24 @@ p {
 
 .workspace-view {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  grid-template-columns:
+    var(--workspace-sidebar-width, 280px)
+    10px
+    minmax(0, 1fr)
+    10px
+    var(--workspace-inspector-width, 320px);
   align-items: start;
 }
 
 .workspace-view--inspector-hidden {
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: var(--workspace-sidebar-width, 280px) 10px minmax(0, 1fr);
 }
 
 .sidebar,
 .inspector {
   padding: 20px;
   min-height: 720px;
+  min-width: 0;
 }
 
 .sidebar-header {
@@ -564,6 +569,31 @@ p {
 .sidebar-scroll {
   display: grid;
   gap: 18px;
+}
+
+.workspace-resize-handle {
+  position: relative;
+  align-self: stretch;
+  min-height: 100%;
+  cursor: col-resize;
+  user-select: none;
+}
+
+.workspace-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  transition: background 0.2s ease;
+}
+
+.workspace-resize-handle:hover::before {
+  background: rgba(96, 165, 250, 0.55);
 }
 
 .tool-group-title {
@@ -580,10 +610,7 @@ p {
 
 .tool-nav {
   width: 100%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  display: block;
   padding: 14px;
   margin-bottom: 10px;
   border: 1px solid rgba(148, 163, 184, 0.12);
@@ -591,6 +618,31 @@ p {
   background: rgba(15, 23, 42, 0.46);
   color: inherit;
   text-align: left;
+}
+
+.tool-nav-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tool-nav-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tool-nav-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tool-nav-copy small {
+  display: block;
+  line-height: 1.45;
 }
 
 .tool-nav.active {
@@ -602,6 +654,7 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .favorite-toggle {
@@ -623,16 +676,40 @@ p {
 
 .workspace-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  gap: 16px;
+}
+
+.workspace-header.compact {
+  padding: 16px 18px;
+}
+
+.workspace-header.compact .eyebrow {
+  margin: 0 0 4px;
+}
+
+.workspace-header.compact h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+}
+
+.workspace-header.compact .summary {
+  line-height: 1.45;
+  font-size: 0.92rem;
 }
 
 .workspace-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
-  max-width: 300px;
+  max-width: none;
+}
+
+.toggle-line.compact {
+  padding: 0.45rem 0.1rem;
 }
 
 .inline-actions {
@@ -655,11 +732,23 @@ p {
   margin-bottom: 14px;
 }
 
+.panel-header.compact {
+  margin-bottom: 10px;
+}
+
 .json-action-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 14px;
+}
+
+.json-input-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
 }
 
 .json-output-action-row {
@@ -818,9 +907,82 @@ code {
   color: #bdd3f2;
 }
 
+.history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.history-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.56);
+  color: inherit;
+  text-align: left;
+}
+
+.history-open-button {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.history-card strong {
+  display: block;
+  line-height: 1.4;
+}
+
+.history-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.history-header-row .inspector-toggle {
+  flex: 1;
+}
+
+.history-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+  color: #9cb0ce;
+  font-size: 0.83rem;
+}
+
+.history-inline-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fca5a5;
+  cursor: pointer;
+}
+
+.history-empty {
+  margin: 0;
+  color: #9cb0ce;
+}
+
+.ghost-button.small.danger {
+  color: #fca5a5;
+}
+
 @media (max-width: 1280px) {
   .workspace-view {
-    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-columns: var(--workspace-sidebar-width, 260px) 10px minmax(0, 1fr);
+  }
+
+  .workspace-resize-handle--inspector {
+    display: none;
   }
 
   .inspector {
@@ -838,6 +1000,10 @@ code {
   .workspace-panels {
     display: flex;
     flex-direction: column;
+  }
+
+  .workspace-resize-handle {
+    display: none;
   }
 
   .topbar {

@@ -85,3 +85,27 @@ export function isSameHistorySnapshot(
     sameViewState(left.viewState, right.viewState)
   );
 }
+
+export function parseWorkspaceHistorySnapshot(snapshotJson: string): WorkspaceHistorySnapshot {
+  const value = JSON.parse(snapshotJson);
+
+  if (
+    !value ||
+    typeof value !== "object" ||
+    typeof value.toolId !== "string" ||
+    typeof value.inputValue !== "string" ||
+    typeof value.outputValue !== "string" ||
+    typeof value.savedAt !== "string"
+  ) {
+    throw new Error("Invalid workspace history snapshot.");
+  }
+
+  return {
+    toolId: value.toolId,
+    inputValue: value.inputValue,
+    outputValue: value.outputValue,
+    savedAt: value.savedAt,
+    options: value.options && typeof value.options === "object" ? { ...value.options } : {},
+    viewState: value.viewState && typeof value.viewState === "object" ? { ...value.viewState } : {},
+  };
+}
