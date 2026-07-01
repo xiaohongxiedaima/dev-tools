@@ -10,17 +10,29 @@ export type CommandPreset = {
 
 export type WorkspaceHistoryRecord = {
   id: number;
+  tool_id: string;
+  source_type: "manual" | "auto";
+  title: string;
+  input_value: string;
+  output_value: string;
+  snapshot_json: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkspaceHistoryRecordInput = Omit<WorkspaceHistoryRecord, "id" | "updated_at"> & {
+  updated_at?: string;
+};
+export type WorkspaceHistoryRecordInputCamelCase = {
   toolId: string;
-  sourceType: "manual" | "auto";
+  sourceType: WorkspaceHistoryRecord["source_type"];
   title: string;
   inputValue: string;
   outputValue: string;
   snapshotJson: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 };
-
-export type WorkspaceHistoryRecordInput = Omit<WorkspaceHistoryRecord, "id">;
 
 export type DatabaseAdapter = Pick<Database, "execute" | "select">;
 export type DatabaseLoader = (databaseUrl: string) => Promise<DatabaseAdapter>;
@@ -28,9 +40,11 @@ export type DatabaseLoader = (databaseUrl: string) => Promise<DatabaseAdapter>;
 type DatabaseApi = {
   initializeDatabase: () => Promise<void>;
   loadCommandPresets: () => Promise<CommandPreset[]>;
-  insertWorkspaceHistoryRecord: (input: WorkspaceHistoryRecordInput) => Promise<void>;
+  insertWorkspaceHistoryRecord: (
+    input: WorkspaceHistoryRecordInput | WorkspaceHistoryRecordInputCamelCase,
+  ) => Promise<void>;
   loadWorkspaceHistoryRecords: () => Promise<WorkspaceHistoryRecord[]>;
-  trimWorkspaceHistory: (sourceType: WorkspaceHistoryRecord["sourceType"], keepCount: number) => Promise<void>;
+  trimWorkspaceHistory: (sourceType: WorkspaceHistoryRecord["source_type"], keepCount: number) => Promise<void>;
 };
 
 type DatabaseApiOptions = {
@@ -60,6 +74,36 @@ const SEED_PRESETS = [
     description: "Jump into a local SQLite database for ad-hoc inspection.",
   },
 ] as const;
+
+function normalizeWorkspaceHistoryRecordInput(
+  input: WorkspaceHistoryRecordInput | WorkspaceHistoryRecordInputCamelCase,
+): Omit<WorkspaceHistoryRecord, "id"> {
+  if ("tool_id" in input) {
+    const created_at = input.created_at;
+    return {
+      tool_id: input.tool_id,
+      source_type: input.source_type,
+      title: input.title,
+      input_value: input.input_value,
+      output_value: input.output_value,
+      snapshot_json: input.snapshot_json,
+      created_at,
+      updated_at: input.updated_at ?? created_at,
+    };
+  }
+
+  const created_at = input.createdAt;
+  return {
+    tool_id: input.toolId,
+    source_type: input.sourceType,
+    title: input.title,
+    input_value: input.inputValue,
+    output_value: input.outputValue,
+    snapshot_json: input.snapshotJson,
+    created_at,
+    updated_at: input.updatedAt ?? created_at,
+  };
+}
 
 export function createDatabaseApi(options: DatabaseApiOptions = {}): DatabaseApi {
   const loadDatabase = options.loadDatabase ?? ((databaseUrl) => Database.load(databaseUrl));
@@ -120,8 +164,11 @@ export function createDatabaseApi(options: DatabaseApiOptions = {}): DatabaseApi
       );
     },
 
-    async insertWorkspaceHistoryRecord(input: WorkspaceHistoryRecordInput): Promise<void> {
+    async insertWorkspaceHistoryRecord(
+      input: WorkspaceHistoryRecordInput | WorkspaceHistoryRecordInputCamelCase,
+    ): Promise<void> {
       const db = await getDatabase();
+      const record = normalizeWorkspaceHistoryRecordInput(input);
 
       await db.execute(
         `INSERT INTO workspace_history (
@@ -129,14 +176,14 @@ export function createDatabaseApi(options: DatabaseApiOptions = {}): DatabaseApi
          )
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
-          input.toolId,
-          input.sourceType,
-          input.title,
-          input.inputValue,
-          input.outputValue,
-          input.snapshotJson,
-          input.createdAt,
-          input.updatedAt,
+          record.tool_id,
+          record.source_type,
+          record.title,
+          record.input_value,
+          record.output_value,
+          record.snapshot_json,
+          record.created_at,
+          record.updated_at,
         ],
       );
     },
@@ -147,20 +194,20 @@ export function createDatabaseApi(options: DatabaseApiOptions = {}): DatabaseApi
       return db.select<WorkspaceHistoryRecord[]>(
         `SELECT
            id,
-           tool_id AS toolId,
-           source_type AS sourceType,
+          tool_id,
+          source_type,
            title,
-           input_value AS inputValue,
-           output_value AS outputValue,
-           snapshot_json AS snapshotJson,
-           created_at AS createdAt,
-           updated_at AS updatedAt
+          input_value,
+          output_value,
+          snapshot_json,
+          created_at,
+          updated_at
          FROM workspace_history
          ORDER BY datetime(created_at) DESC, id DESC`,
       );
     },
 
-    async trimWorkspaceHistory(sourceType: WorkspaceHistoryRecord["sourceType"], keepCount: number): Promise<void> {
+    async trimWorkspaceHistory(sourceType: WorkspaceHistoryRecord["source_type"], keepCount: number): Promise<void> {
       const db = await getDatabase();
       const safeKeepCount = Math.max(0, keepCount);
 

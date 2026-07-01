@@ -28,14 +28,13 @@ function createSqliteAdapter() {
 
 function createHistoryRecord(overrides = {}) {
   return {
-    toolId: "json-formatter",
-    sourceType: "manual",
+    tool_id: "json-formatter",
+    source_type: "manual",
     title: "Format JSON",
-    inputValue: '{"a":1}',
-    outputValue: '{\n  "a": 1\n}',
-    snapshotJson: '{"toolId":"json-formatter"}',
-    createdAt: "2026-07-01T09:00:00.000Z",
-    updatedAt: "2026-07-01T09:00:00.000Z",
+    input_value: '{"a":1}',
+    output_value: '{\n  "a": 1\n}',
+    snapshot_json: '{"toolId":"json-formatter"}',
+    created_at: "2026-07-01T09:00:00.000Z",
     ...overrides,
   };
 }
@@ -56,17 +55,29 @@ test("preview collapses whitespace and newlines into a single readable line", ()
 });
 
 test("snapshot comparison ignores timestamps but still detects tool-state changes", () => {
-  const left = createHistorySnapshot("json-formatter", "input", "output", { jsonAction: "format" }, {
-    jsonOutputMode: "tree",
-    jsonTreeDepth: 2,
+  const left = createHistorySnapshot({
+    toolId: "json-formatter",
+    inputValue: "input",
+    outputValue: "output",
+    options: { jsonAction: "format" },
+    viewState: {
+      jsonOutputMode: "tree",
+      jsonTreeDepth: 2,
+    },
   });
   const right = {
     ...left,
     savedAt: "2026-07-01T00:00:00.000Z",
   };
-  const changed = createHistorySnapshot("json-formatter", "input", "output", { jsonAction: "minify" }, {
-    jsonOutputMode: "tree",
-    jsonTreeDepth: 2,
+  const changed = createHistorySnapshot({
+    toolId: "json-formatter",
+    inputValue: "input",
+    outputValue: "output",
+    options: { jsonAction: "minify" },
+    viewState: {
+      jsonOutputMode: "tree",
+      jsonTreeDepth: 2,
+    },
   });
 
   assert.equal(isSameHistorySnapshot(left, right), true);
@@ -79,13 +90,13 @@ test("retention constants stay fixed", () => {
 });
 
 test("snapshot builder stores current workspace state", () => {
-  const snapshot = createHistorySnapshot(
-    "json-formatter",
-    '{"a":1}',
-    '{\n  "a": 1\n}',
-    { jsonAction: "sort", liveMode: false },
-    { jsonOutputMode: "tree", jsonTreeDepth: 3, jsonTreeCollapsedNodeLength: 4 },
-  );
+  const snapshot = createHistorySnapshot({
+    toolId: "json-formatter",
+    inputValue: '{"a":1}',
+    outputValue: '{\n  "a": 1\n}',
+    options: { jsonAction: "sort", liveMode: false },
+    viewState: { jsonOutputMode: "tree", jsonTreeDepth: 3, jsonTreeCollapsedNodeLength: 4 },
+  });
 
   assert.deepEqual(snapshot, {
     toolId: "json-formatter",
@@ -150,70 +161,101 @@ test("workspace history APIs insert load and trim records by source type", async
 
   await api.initializeDatabase();
   await api.insertWorkspaceHistoryRecord(createHistoryRecord({
-    sourceType: "manual",
+    source_type: "manual",
     title: "Old manual",
-    createdAt: "2026-07-01T09:00:00.000Z",
-    updatedAt: "2026-07-01T09:00:00.000Z",
-    snapshotJson: '{"savedAt":"old-manual"}',
+    created_at: "2026-07-01T09:00:00.000Z",
+    snapshot_json: '{"savedAt":"old-manual"}',
   }));
   await api.insertWorkspaceHistoryRecord(createHistoryRecord({
-    sourceType: "auto",
+    source_type: "auto",
     title: "Old auto",
-    createdAt: "2026-07-01T09:01:00.000Z",
-    updatedAt: "2026-07-01T09:01:00.000Z",
-    snapshotJson: '{"savedAt":"old-auto"}',
+    created_at: "2026-07-01T09:01:00.000Z",
+    snapshot_json: '{"savedAt":"old-auto"}',
   }));
   await api.insertWorkspaceHistoryRecord(createHistoryRecord({
-    sourceType: "auto",
+    source_type: "auto",
     title: "New auto",
-    createdAt: "2026-07-01T09:02:00.000Z",
-    updatedAt: "2026-07-01T09:02:00.000Z",
-    snapshotJson: '{"savedAt":"new-auto"}',
+    created_at: "2026-07-01T09:02:00.000Z",
+    snapshot_json: '{"savedAt":"new-auto"}',
   }));
 
   const beforeTrim = await api.loadWorkspaceHistoryRecords();
 
   assert.deepEqual(
-    beforeTrim.map(({ title, sourceType, createdAt, snapshotJson }) => ({
+    beforeTrim.map(({ title, source_type, created_at, snapshot_json }) => ({
       title,
-      sourceType,
-      createdAt,
-      snapshotJson,
+      source_type,
+      created_at,
+      snapshot_json,
     })),
     [
       {
         title: "New auto",
-        sourceType: "auto",
-        createdAt: "2026-07-01T09:02:00.000Z",
-        snapshotJson: '{"savedAt":"new-auto"}',
+        source_type: "auto",
+        created_at: "2026-07-01T09:02:00.000Z",
+        snapshot_json: '{"savedAt":"new-auto"}',
       },
       {
         title: "Old auto",
-        sourceType: "auto",
-        createdAt: "2026-07-01T09:01:00.000Z",
-        snapshotJson: '{"savedAt":"old-auto"}',
+        source_type: "auto",
+        created_at: "2026-07-01T09:01:00.000Z",
+        snapshot_json: '{"savedAt":"old-auto"}',
       },
       {
         title: "Old manual",
-        sourceType: "manual",
-        createdAt: "2026-07-01T09:00:00.000Z",
-        snapshotJson: '{"savedAt":"old-manual"}',
+        source_type: "manual",
+        created_at: "2026-07-01T09:00:00.000Z",
+        snapshot_json: '{"savedAt":"old-manual"}',
       },
     ],
   );
-  assert.equal(beforeTrim[0].toolId, "json-formatter");
-  assert.equal(beforeTrim[0].inputValue, '{"a":1}');
-  assert.equal(beforeTrim[0].outputValue, '{\n  "a": 1\n}');
+  assert.equal(beforeTrim[0].tool_id, "json-formatter");
+  assert.equal(beforeTrim[0].input_value, '{"a":1}');
+  assert.equal(beforeTrim[0].output_value, '{\n  "a": 1\n}');
+  assert.equal(beforeTrim[1].updated_at, beforeTrim[1].created_at);
 
   await api.trimWorkspaceHistory("auto", 1);
 
   const afterTrim = await api.loadWorkspaceHistoryRecords();
 
   assert.deepEqual(
-    afterTrim.map(({ title, sourceType }) => ({ title, sourceType })),
+    afterTrim.map(({ title, source_type }) => ({ title, source_type })),
     [
-      { title: "New auto", sourceType: "auto" },
-      { title: "Old manual", sourceType: "manual" },
+      { title: "New auto", source_type: "auto" },
+      { title: "Old manual", source_type: "manual" },
     ],
   );
+});
+
+test("workspace history insert defaults updated_at from created_at and accepts camelCase input", async () => {
+  const { adapter } = createSqliteAdapter();
+  const api = createDatabaseApi({
+    databaseUrl: "sqlite:test.db",
+    loadDatabase: async () => adapter,
+  });
+
+  await api.initializeDatabase();
+  await api.insertWorkspaceHistoryRecord({
+    toolId: "json-formatter",
+    sourceType: "manual",
+    title: "Camel case input",
+    inputValue: '{"b":2}',
+    outputValue: '{\n  "b": 2\n}',
+    snapshotJson: '{"savedAt":"camel-case"}',
+    createdAt: "2026-07-01T09:03:00.000Z",
+  });
+
+  const [record] = await api.loadWorkspaceHistoryRecords();
+
+  assert.deepEqual({ ...record }, {
+    id: 1,
+    tool_id: "json-formatter",
+    source_type: "manual",
+    title: "Camel case input",
+    input_value: '{"b":2}',
+    output_value: '{\n  "b": 2\n}',
+    snapshot_json: '{"savedAt":"camel-case"}',
+    created_at: "2026-07-01T09:03:00.000Z",
+    updated_at: "2026-07-01T09:03:00.000Z",
+  });
 });

@@ -23,6 +23,14 @@ export type WorkspaceHistorySnapshot = {
   viewState: WorkspaceHistoryViewState;
 };
 
+export type CreateHistorySnapshotInput = {
+  toolId: string;
+  inputValue: string;
+  outputValue: string;
+  options?: WorkspaceHistoryOptions;
+  viewState?: WorkspaceHistoryViewState;
+};
+
 function collapseWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -48,13 +56,13 @@ export function buildHistoryPreview(inputValue: string, outputValue: string): st
   return sourceText.slice(0, 80);
 }
 
-export function createHistorySnapshot(
-  toolId: string,
-  inputValue: string,
-  outputValue: string,
-  options: WorkspaceHistoryOptions = {},
-  viewState: WorkspaceHistoryViewState = {},
-): WorkspaceHistorySnapshot {
+export function createHistorySnapshot({
+  toolId,
+  inputValue,
+  outputValue,
+  options = {},
+  viewState = {},
+}: CreateHistorySnapshotInput): WorkspaceHistorySnapshot {
   return {
     toolId,
     inputValue,
