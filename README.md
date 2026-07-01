@@ -27,3 +27,14 @@ npm run tauri dev
 - saved API/debug commands
 - log viewer and grep shortcuts
 - local environment and database helpers
+
+## Release packaging
+
+Push a version tag like `v0.1.0` to trigger GitHub Actions packaging for macOS, Linux, and Windows.
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow will build the Tauri bundles and upload the generated assets to GitHub Releases for that tag.
