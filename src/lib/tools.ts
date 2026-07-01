@@ -117,6 +117,23 @@ export const toolCategories: ToolCategory[] = [
     ],
   },
   {
+    id: "database",
+    name: "数据库辅助",
+    tools: [
+      {
+        id: "redis-lua-debug-console",
+        name: "Redis Lua 调试台",
+        description: "本地运行 Lua 并代理 redis.call / redis.pcall 到 Redis。",
+        tags: ["redis", "lua", "debug"],
+        placeholder:
+          "local value = redis.call(\"GET\", KEYS[1])\nif not value then\n  redis.call(\"SET\", KEYS[1], ARGV[1])\nend\nreturn redis.call(\"GET\", KEYS[1])",
+        sampleOutputTitle: "调试结果",
+        sampleOutput:
+          '{\n  "success": true,\n  "mode": "proxy",\n  "error": null,\n  "result": "demo-value",\n  "traceCount": 3,\n  "logCount": 0\n}',
+      },
+    ],
+  },
+  {
     id: "network",
     name: "网络辅助",
     tools: [
@@ -160,13 +177,14 @@ export const tools: ToolDefinition[] = toolCategories.flatMap((category) =>
 );
 
 export const defaultToolId = "json-formatter";
-export const featuredToolIds = ["json-formatter", "timestamp", "url-encode", "jwt-inspector"];
-export const recentToolIds = ["json-formatter", "timestamp", "curl-helper"];
+export const featuredToolIds = ["json-formatter", "redis-lua-debug-console", "timestamp", "jwt-inspector"];
+export const recentToolIds = ["json-formatter", "redis-lua-debug-console", "curl-helper"];
 export const defaultFavoriteToolIds = ["json-formatter", "url-encode"];
 export const workspaceTips = [
   "把格式化、压缩、复制、交换输入输出统一放在工具操作条里。",
   "输入区默认实时转换，复杂工具支持切换为手动执行。",
   "右侧历史中心专门放手动保存和自动输入历史，避免挤占主工作区。",
+  "Redis Lua 调试台优先用本地代理模式观察每次 redis.call，再按需切到真实 EVAL 校验。",
 ];
 
 export function getTool(toolId: string): ToolDefinition | undefined {

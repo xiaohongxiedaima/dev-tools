@@ -14,6 +14,15 @@ export type WorkspaceHistoryViewState = {
   jsonTreeCollapsedNodeLength?: number;
 };
 
+export type WorkspaceHistoryToolState = {
+  redisLua?: {
+    redisUrl: string;
+    keysText: string;
+    argvText: string;
+    executionMode: "proxy" | "eval";
+  };
+};
+
 export type WorkspaceHistorySnapshot = {
   toolId: string;
   inputValue: string;
@@ -21,6 +30,7 @@ export type WorkspaceHistorySnapshot = {
   savedAt: string;
   options: WorkspaceHistoryOptions;
   viewState: WorkspaceHistoryViewState;
+  toolState: WorkspaceHistoryToolState;
 };
 
 export type CreateHistorySnapshotInput = {
@@ -29,6 +39,7 @@ export type CreateHistorySnapshotInput = {
   outputValue: string;
   options?: WorkspaceHistoryOptions;
   viewState?: WorkspaceHistoryViewState;
+  toolState?: WorkspaceHistoryToolState;
 };
 
 function collapseWhitespace(value: string): string {
@@ -50,6 +61,10 @@ function sameViewState(left: WorkspaceHistoryViewState, right: WorkspaceHistoryV
   );
 }
 
+function sameToolState(left: WorkspaceHistoryToolState, right: WorkspaceHistoryToolState): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export function buildHistoryPreview(inputValue: string, outputValue: string): string {
   const sourceText = collapseWhitespace(inputValue.trim() ? inputValue : outputValue);
 
@@ -62,6 +77,7 @@ export function createHistorySnapshot({
   outputValue,
   options = {},
   viewState = {},
+  toolState = {},
 }: CreateHistorySnapshotInput): WorkspaceHistorySnapshot {
   return {
     toolId,
@@ -70,6 +86,7 @@ export function createHistorySnapshot({
     savedAt: "",
     options: { ...options },
     viewState: { ...viewState },
+    toolState: { ...toolState },
   };
 }
 
@@ -82,7 +99,8 @@ export function isSameHistorySnapshot(
     left.inputValue === right.inputValue &&
     left.outputValue === right.outputValue &&
     sameOptions(left.options, right.options) &&
-    sameViewState(left.viewState, right.viewState)
+    sameViewState(left.viewState, right.viewState) &&
+    sameToolState(left.toolState, right.toolState)
   );
 }
 
@@ -107,5 +125,6 @@ export function parseWorkspaceHistorySnapshot(snapshotJson: string): WorkspaceHi
     savedAt: value.savedAt,
     options: value.options && typeof value.options === "object" ? { ...value.options } : {},
     viewState: value.viewState && typeof value.viewState === "object" ? { ...value.viewState } : {},
+    toolState: value.toolState && typeof value.toolState === "object" ? { ...value.toolState } : {},
   };
 }

@@ -151,12 +151,23 @@ test('json output actions use text buttons and tree controls', () => {
   assert.match(workspacePanel, /class="json-output-action-row"/);
 });
 
-test('input and output areas expose direct search controls', () => {
+test('input and output areas expose a single toggleable search overlay inside content areas', () => {
   assert.match(workspacePanel, /input-search-query/);
   assert.match(workspacePanel, /output-search-query/);
-  assert.match(workspacePanel, />\s*查找\s*</);
   assert.match(workspacePanel, />\s*上一个\s*</);
   assert.match(workspacePanel, />\s*下一个\s*</);
+  assert.match(workspacePanel, /const inputSearchVisible = ref\(false\);/);
+  assert.match(workspacePanel, /const outputSearchVisible = ref\(false\);/);
+  assert.match(workspacePanel, /window\.addEventListener\("keydown", handleSearchShortcut, true\)/);
+  assert.match(workspacePanel, /event\.key\.toLowerCase\(\) !== "f"/);
+  assert.match(workspacePanel, /class="editor-search-row editor-search-row--overlay"/);
+  assert.match(workspacePanel, /class="editor-search-overlay"/);
+  assert.match(workspacePanel, /class="editor-content-shell"/);
+  assert.match(workspacePanel, /const inputContentRef = ref<HTMLElement \| null>\(null\);/);
+  assert.match(workspacePanel, /const outputContentRef = ref<HTMLElement \| null>\(null\);/);
+  assert.match(workspacePanel, /inputContentRef\.value\?\.contains\(target\) \|\| inputSearchInputRef\.value\?\.contains\(target\)/);
+  assert.match(workspacePanel, /outputContentRef\.value\?\.contains\(target\) \|\| outputSearchInputRef\.value\?\.contains\(target\)/);
+  assert.doesNotMatch(workspacePanel, /inputPanelRef|outputPanelRef|focusedPanel/);
 });
 
 test('copy result action exposes visible success or failure feedback', () => {
@@ -217,6 +228,9 @@ test('package installs codemirror and github-style theme support', () => {
 test('app styles include codemirror panel hooks', () => {
   assert.match(appCss, /code-editor-shell/);
   assert.match(appCss, /\.cm-editor/);
+  assert.match(appCss, /\.panel-header-tools/);
+  assert.match(appCss, /\.editor-search-overlay/);
+  assert.match(appCss, /\.editor-search-row--overlay/);
 });
 
 test('code editor exposes search locate methods', () => {

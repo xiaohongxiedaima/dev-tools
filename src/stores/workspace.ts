@@ -25,6 +25,14 @@ import {
   type WorkspaceHistorySource,
 } from "../lib/workspace-history";
 import {
+  createDefaultRedisLuaHistoryState,
+  formatRedisLuaDebugResponse,
+  parseRedisLuaArrayInput,
+  type RedisLuaDebugResponse,
+  type RedisLuaExecutionMode,
+} from "../lib/redis-lua-debug";
+import { invokeRedisLuaDebug } from "../lib/redis-lua-debug-api";
+import {
   defaultFavoriteToolIds,
   defaultToolId,
   featuredToolIds,
@@ -43,7 +51,11 @@ function definedTools(toolIds: string[]): ToolDefinition[] {
 }
 
 function getToolDefaultInputValue(tool: ToolDefinition) {
-  return tool.id === "json-formatter" ? "{}" : tool.placeholder;
+  if (tool.id === "json-formatter") {
+    return "{}";
+  }
+
+  return tool.placeholder;
 }
 
 export const useWorkspaceStore = defineStore("workspace", () => {
@@ -63,6 +75,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const jsonOutputMode = ref<"text" | "tree">("text");
   const jsonTreeDepth = ref(Number.POSITIVE_INFINITY);
   const jsonTreeCollapsedNodeLength = ref(Number.POSITIVE_INFINITY);
+  const redisLuaDefaults = createDefaultRedisLuaHistoryState();
+  const redisLuaRedisUrl = ref(redisLuaDefaults.redisUrl);
+  const redisLuaKeysText = ref(redisLuaDefaults.keysText);
+  const redisLuaArgvText = ref(redisLuaDefaults.argvText);
+  const redisLuaExecutionMode = ref<RedisLuaExecutionMode>(redisLuaDefaults.executionMode);
+  const redisLuaIsRunning = ref(false);
+  const redisLuaLastResponse = ref<RedisLuaDebugResponse | null>(null);
   const favoriteToolIds = ref<string[]>([...defaultFavoriteToolIds]);
   const recentToolHistory = ref<string[]>([...recentToolIds]);
   const favoritePresetNames = ref(["API health check", "Open SQLite shell"]);
@@ -146,7 +165,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   ]);
   const bootstrapStatus = computed(() => {
     if (errorMessage.value) {
-      return { tone: "error", label: "SQLite 初始化失败", detail: errorMessage.value };
+      return { tone: "error", label: "工作区出现异常", detail: errorMessage.value };
     }
 
     if (isLoading.value || isInitializing.value) {
@@ -164,6 +183,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     recentToolHistory.value = [toolId, ...recentToolHistory.value.filter((id) => id !== toolId)].slice(0, 6);
   }
 
+  function applyRedisLuaDefaults() {
+    const defaults = createDefaultRedisLuaHistoryState();
+    redisLuaRedisUrl.value = defaults.redisUrl;
+    redisLuaKeysText.value = defaults.keysText;
+    redisLuaArgvText.value = defaults.argvText;
+    redisLuaExecutionMode.value = defaults.executionMode;
+    redisLuaIsRunning.value = false;
+    redisLuaLastResponse.value = null;
+  }
+
   function setSearchTerm(value: string) {
     searchTerm.value = value;
   }
@@ -172,11 +201,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     activeToolId.value = tool.id;
     inputValue.value = getToolDefaultInputValue(tool);
     manualOutput.value = tool.sampleOutput;
-    liveMode.value = true;
+    liveMode.value = tool.id !== "redis-lua-debug-console";
     jsonAction.value = "format";
     jsonOutputMode.value = "text";
     jsonTreeDepth.value = Number.POSITIVE_INFINITY;
     jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
+    errorMessage.value = "";
+
+    if (tool.id === "redis-lua-debug-console") {
+      applyRedisLuaDefaults();
+    }
   }
 
   function setActiveTool(toolId: string) {
@@ -205,6 +239,22 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     jsonOutputMode.value = mode;
   }
 
+  function setRedisLuaRedisUrl(value: string) {
+    redisLuaRedisUrl.value = value;
+  }
+
+  function setRedisLuaKeysText(value: string) {
+    redisLuaKeysText.value = value;
+  }
+
+  function setRedisLuaArgvText(value: string) {
+    redisLuaArgvText.value = value;
+  }
+
+  function setRedisLuaExecutionMode(mode: RedisLuaExecutionMode) {
+    redisLuaExecutionMode.value = mode;
+  }
+
   function expandJsonTree() {
     jsonTreeDepth.value = Number.POSITIVE_INFINITY;
     jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
@@ -228,7 +278,65 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     inputValue.value = outputPreview.value;
   }
 
-  function runCurrentTransform() {
+  async function runCurrentTransform() {
+    if (activeTool.value.id === "redis-lua-debug-console") {
+      const redisUrl = redisLuaRedisUrl.value.trim();
+      if (!redisUrl) {
+        const message = "Redis 地址不能为空。";
+        manualOutput.value = message;
+        redisLuaLastResponse.value = null;
+        return;
+      }
+
+      let keys: string[];
+      let argv: string[];
+      try {
+        keys = parseRedisLuaArrayInput(redisLuaKeysText.value, "KEYS");
+        argv = parseRedisLuaArrayInput(redisLuaArgvText.value, "ARGV");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        manualOutput.value = message;
+        redisLuaLastResponse.value = null;
+        return;
+      }
+
+      redisLuaIsRunning.value = true;
+      errorMessage.value = "";
+
+      try {
+        const response = await invokeRedisLuaDebug({
+          redisUrl,
+          script: inputValue.value,
+          keys,
+          argv,
+          executionMode: redisLuaExecutionMode.value,
+        });
+
+        redisLuaLastResponse.value = response;
+        manualOutput.value = formatRedisLuaDebugResponse(response);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errorMessage.value = message;
+        redisLuaLastResponse.value = null;
+        manualOutput.value = JSON.stringify(
+          {
+            success: false,
+            mode: redisLuaExecutionMode.value,
+            error: message,
+            result: "",
+            traceCount: 0,
+            logCount: 0,
+          },
+          null,
+          2,
+        );
+      } finally {
+        redisLuaIsRunning.value = false;
+      }
+
+      return;
+    }
+
     manualOutput.value = transformedOutput.value;
   }
 
@@ -267,6 +375,17 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         jsonTreeDepth: jsonTreeDepth.value,
         jsonTreeCollapsedNodeLength: jsonTreeCollapsedNodeLength.value,
       },
+      toolState:
+        activeToolId.value === "redis-lua-debug-console"
+          ? {
+              redisLua: {
+                redisUrl: redisLuaRedisUrl.value,
+                keysText: redisLuaKeysText.value,
+                argvText: redisLuaArgvText.value,
+                executionMode: redisLuaExecutionMode.value,
+              },
+            }
+          : {},
     });
   }
 
@@ -360,7 +479,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     applyToolStateDefaults(tool);
     activeToolId.value = snapshot.toolId;
     inputValue.value = snapshot.inputValue;
-    manualOutput.value = tool.sampleOutput;
+    manualOutput.value = snapshot.toolId === "redis-lua-debug-console" ? snapshot.outputValue : tool.sampleOutput;
+
+    if (snapshot.toolId === "redis-lua-debug-console" && snapshot.toolState.redisLua) {
+      redisLuaRedisUrl.value = snapshot.toolState.redisLua.redisUrl;
+      redisLuaKeysText.value = snapshot.toolState.redisLua.keysText;
+      redisLuaArgvText.value = snapshot.toolState.redisLua.argvText;
+      redisLuaExecutionMode.value = snapshot.toolState.redisLua.executionMode;
+    }
+
     rememberTool(snapshot.toolId);
   }
 
@@ -427,6 +554,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     outputPreview,
     presets,
     recentTools,
+    redisLuaArgvText,
+    redisLuaExecutionMode,
+    redisLuaIsRunning,
+    redisLuaKeysText,
+    redisLuaLastResponse,
+    redisLuaRedisUrl,
     deleteHistoryEntry,
     restoreHistoryEntry,
     searchTerm,
@@ -440,6 +573,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     setJsonAction,
     setJsonOutputMode,
     setLiveMode,
+    setRedisLuaArgvText,
+    setRedisLuaExecutionMode,
+    setRedisLuaKeysText,
+    setRedisLuaRedisUrl,
     setShowLineNumbers,
     setSearchTerm,
     expandJsonTree,

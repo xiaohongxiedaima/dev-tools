@@ -67,7 +67,7 @@ onMounted(async () => {
 
       <div class="topbar-side">
         <label class="search-shell">
-          <input v-model="searchTerm" type="text" placeholder="搜索 JSON、时间戳、URL、JWT..." />
+          <input v-model="searchTerm" type="text" placeholder="搜索 Redis Lua、JSON、时间戳、URL、JWT..." />
         </label>
 
         <div class="topbar-actions">
@@ -491,6 +491,104 @@ p {
   gap: 12px;
 }
 
+.redis-config-grid,
+.redis-debug-block,
+.redis-log-card,
+.redis-trace-card {
+  display: grid;
+  gap: 12px;
+}
+
+.redis-config-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.redis-config-field {
+  display: grid;
+  gap: 8px;
+}
+
+.redis-config-field--full {
+  grid-column: 1 / -1;
+}
+
+.redis-config-field span,
+.redis-debug-block h3,
+.redis-summary-row,
+.redis-trace-top-row,
+.redis-trace-args,
+.redis-trace-error,
+.redis-log-card strong {
+  color: #c7d6ec;
+}
+
+.redis-config-field input,
+.redis-config-field textarea {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e8edf7;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+.redis-config-field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.redis-mode-row,
+.redis-summary-row,
+.redis-trace-top-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.redis-summary-row {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.redis-debug-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.redis-debug-block-header h3 {
+  margin: 0;
+}
+
+.redis-log-card,
+.redis-trace-card {
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.44);
+}
+
+.redis-log-card pre,
+.redis-trace-card pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #e8edf7;
+}
+
+.redis-trace-args,
+.redis-trace-error {
+  margin: 0;
+  font-size: 13px;
+}
+
+.redis-trace-error {
+  color: #fca5a5;
+}
+
 .tool-card-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -732,6 +830,19 @@ p {
   margin-bottom: 14px;
 }
 
+.panel-header-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-header-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .panel-header.compact {
   margin-bottom: 10px;
 }
@@ -773,6 +884,44 @@ p {
   border-radius: 12px;
   background: rgba(15, 23, 42, 0.76);
   color: #e8edf7;
+}
+
+.editor-content-shell,
+.output-preview {
+  position: relative;
+}
+
+.editor-search-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  max-width: calc(100% - 16px);
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  background: rgba(7, 17, 31, 0.94);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.editor-search-row--overlay {
+  margin-top: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-search-row--overlay input {
+  min-width: 150px;
+  flex-basis: 150px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.editor-search-row--overlay .ghost-button.small {
+  padding: 0.42rem 0.62rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
 }
 
 .json-action-active {
@@ -1033,6 +1182,19 @@ code {
 
   .tool-card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .panel-header-tools {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .editor-search-overlay {
+    left: 12px;
+  }
+
+  .editor-search-row--overlay {
+    flex-wrap: wrap;
   }
 
   .sidebar,

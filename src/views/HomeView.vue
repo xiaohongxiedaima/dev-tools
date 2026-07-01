@@ -24,8 +24,8 @@ function openTool(toolId: string) {
         </p>
 
         <div class="hero-actions">
-          <button class="primary-button" type="button" @click="openTool('json-formatter')">进入工作台</button>
-          <button class="ghost-button" type="button" @click="openTool('timestamp')">试试时间工具</button>
+          <button class="primary-button" type="button" @click="openTool('redis-lua-debug-console')">打开 Redis Lua 调试台</button>
+          <button class="ghost-button" type="button" @click="openTool('json-formatter')">进入工作台</button>
         </div>
       </div>
 

@@ -109,6 +109,7 @@ test("snapshot builder stores current workspace state", () => {
     savedAt: "",
     options: { jsonAction: "sort", liveMode: false },
     viewState: { jsonOutputMode: "tree", jsonTreeDepth: 3, jsonTreeCollapsedNodeLength: 4 },
+    toolState: {},
   });
 });
 
@@ -365,7 +366,10 @@ test("workspace store exposes history save restore and auto-save actions", () =>
 
 test("workspace store uses a JSON default input value and skips auto-saving tool defaults", () => {
   assert.match(workspaceStore, /function getToolDefaultInputValue\(tool: ToolDefinition\)/);
-  assert.match(workspaceStore, /tool\.id === "json-formatter" \? "\{\}" : tool\.placeholder/);
+  assert.match(
+    workspaceStore,
+    /if \(tool\.id === "json-formatter"\) \{\s*return "\{\}";\s*\}[\s\S]*return tool\.placeholder;/,
+  );
   assert.match(workspaceStore, /const inputValue = ref\(getToolDefaultInputValue\(getTool\(defaultToolId\) \?\? tools\[0\]\)\)/);
   assert.match(
     workspaceStore,
@@ -383,8 +387,17 @@ test("workspace store restores snapshot fields back into live tool state", () =>
   assert.match(workspaceStore, /applyToolStateDefaults\(tool\);/);
   assert.match(workspaceStore, /activeToolId\.value = snapshot\.toolId/);
   assert.match(workspaceStore, /inputValue\.value = snapshot\.inputValue/);
-  assert.match(workspaceStore, /manualOutput\.value = tool\.sampleOutput/);
+  assert.match(
+    workspaceStore,
+    /manualOutput\.value = snapshot\.toolId === "redis-lua-debug-console" \? snapshot\.outputValue : tool\.sampleOutput/,
+  );
   assert.doesNotMatch(workspaceStore, /jsonOutputMode\.value = snapshot\.viewState\.jsonOutputMode/);
+});
+
+test("workspace snapshots can carry redis lua tool state", () => {
+  assert.match(workspaceStore, /toolState:\s*activeToolId\.value === "redis-lua-debug-console"/);
+  assert.match(workspaceStore, /snapshot\.toolId === "redis-lua-debug-console" && snapshot\.toolState\.redisLua/);
+  assert.match(workspaceStore, /redisLuaExecutionMode\.value = snapshot\.toolState\.redisLua\.executionMode/);
 });
 
 test("workspace bootstrap loads presets and history together", () => {
@@ -408,6 +421,7 @@ test("history snapshot parser fills missing options and view state defaults", ()
       savedAt: "2026-07-01T09:00:00.000Z",
       options: {},
       viewState: {},
+      toolState: {},
     },
   );
 });
