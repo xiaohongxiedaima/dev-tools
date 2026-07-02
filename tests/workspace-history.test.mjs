@@ -419,8 +419,8 @@ test("workspace store restores snapshot fields back into live tool state", () =>
   assert.match(workspaceStore, /outputShowLineNumbers\.value = snapshot\.viewState\.outputShowLineNumbers \?\? false/);
   assert.match(workspaceStore, /inputSoftWrap\.value = snapshot\.viewState\.inputSoftWrap \?\? true/);
   assert.match(workspaceStore, /outputSoftWrap\.value = snapshot\.viewState\.outputSoftWrap \?\? false/);
-  assert.match(workspaceStore, /jsonMode\.value = snapshot\.options\.jsonMode \?\? \(snapshot\.options\.jsonAction === "minify" \? "minify" : "format"\)/);
-  assert.match(workspaceStore, /jsonSortKeys\.value = snapshot\.options\.jsonSortKeys \?\? snapshot\.options\.jsonAction === "sort"/);
+  assert.match(workspaceStore, /jsonStore\.jsonMode = snapshot\.options\.jsonMode \?\? \(snapshot\.options\.jsonAction === "minify" \? "minify" : "format"\)/);
+  assert.match(workspaceStore, /jsonStore\.jsonSortKeys = snapshot\.options\.jsonSortKeys \?\? snapshot\.options\.jsonAction === "sort"/);
   assert.match(workspaceStore, /base64Mode\.value = snapshot\.options\.base64Mode \?\? "decode"/);
   assert.doesNotMatch(workspaceStore, /jsonOutputMode\.value = snapshot\.viewState\.jsonOutputMode/);
 });
@@ -428,7 +428,7 @@ test("workspace store restores snapshot fields back into live tool state", () =>
 test("workspace snapshots can carry redis lua tool state", () => {
   assert.match(workspaceStore, /toolState:\s*activeToolId\.value === "redis-lua-debug-console"/);
   assert.match(workspaceStore, /snapshot\.toolId === "redis-lua-debug-console" && snapshot\.toolState\.redisLua/);
-  assert.match(workspaceStore, /redisLuaExecutionMode\.value = snapshot\.toolState\.redisLua\.executionMode/);
+  assert.match(workspaceStore, /redisLuaStore\.redisLuaExecutionMode = snapshot\.toolState\.redisLua\.executionMode/);
 });
 
 test("workspace bootstrap loads presets and history together", () => {

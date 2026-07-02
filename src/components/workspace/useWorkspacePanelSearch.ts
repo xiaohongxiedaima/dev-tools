@@ -25,22 +25,26 @@ export function useWorkspacePanelSearch({
   const inputSearchVisible = ref(false);
   const outputSearchVisible = ref(false);
 
-  function searchInputNext() {
+  async function searchInputNext() {
     inputEditorRef.value?.findNextMatch(inputSearchQuery.value);
+    inputSearchInputRef.value?.focus();
   }
 
-  function searchInputPrevious() {
+  async function searchInputPrevious() {
     inputEditorRef.value?.findPreviousMatch(inputSearchQuery.value);
+    inputSearchInputRef.value?.focus();
   }
 
   async function searchOutputNext() {
     await beforeOutputSearch?.();
     outputEditorRef.value?.findNextMatch(outputSearchQuery.value);
+    outputSearchInputRef.value?.focus();
   }
 
   async function searchOutputPrevious() {
     await beforeOutputSearch?.();
     outputEditorRef.value?.findPreviousMatch(outputSearchQuery.value);
+    outputSearchInputRef.value?.focus();
   }
 
   function resolvePanelFromTarget(target: EventTarget | null) {

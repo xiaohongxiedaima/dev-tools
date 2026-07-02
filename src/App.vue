@@ -335,13 +335,15 @@ textarea {
 }
 
 .ghost-button.small {
-  padding: 0.5rem 0.75rem;
-  border-radius: 12px;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
 }
 
 .primary-button.small {
-  padding: 0.5rem 0.75rem;
-  border-radius: 12px;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
 }
 
 .ghost-button.small.icon-only,
@@ -546,8 +548,9 @@ p {
 }
 
 .redis-field-label {
-  flex: 0 0 auto;
+  flex: 0 0 80px;
   white-space: nowrap;
+  text-align: right;
   color: var(--dt-text-secondary);
   font-size: 13px;
 }
@@ -738,47 +741,17 @@ p {
   flex-wrap: wrap;
 }
 
-.redis-mode-inline-label {
-  color: var(--dt-text-secondary);
-  white-space: nowrap;
-}
-
-/* KEYS / ARGV 数组输入：标题 + 模式切换按钮单行 */
+/* KEYS / ARGV 数组输入：标题 + 操作按钮单行 */
 .redis-array-header {
   display: flex;
   gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.redis-array-mode-toggle {
-  display: flex;
-  gap: 5px;
-}
-
-.redis-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.redis-item-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.redis-item-index {
-  flex: 0 0 auto;
-  min-width: 60px;
-  color: var(--dt-text-secondary);
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.redis-item-row input {
+.redis-array-input {
   flex: 1 1 auto;
+  min-width: 0;
   border: 1px solid var(--dt-border-strong);
   border-radius: 10px;
   background: var(--dt-surface-solid);
@@ -787,8 +760,45 @@ p {
   box-sizing: border-box;
 }
 
-.redis-item-add {
-  align-self: flex-start;
+.redis-array-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.redis-parsed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.redis-parsed-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0;
+}
+
+.redis-parsed-index {
+  flex: 0 0 80px;
+  text-align: right;
+  color: var(--dt-text-secondary);
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.redis-parsed-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--dt-border-strong);
+  border-radius: 6px;
+  background: var(--dt-surface-solid);
+  color: var(--dt-text);
+  padding: 5px 8px;
+  box-sizing: border-box;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .redis-debug-block {
@@ -909,8 +919,25 @@ p {
   min-height: 0;
 }
 
-.workspace-view--inspector-hidden {
+.workspace-view--left-center {
   grid-template-columns: var(--workspace-sidebar-width, 280px) var(--workspace-divider-size) minmax(0, 1fr);
+}
+
+.workspace-view--all {
+  grid-template-columns:
+    var(--workspace-sidebar-width, 280px)
+    var(--workspace-divider-size)
+    minmax(0, 1fr)
+    var(--workspace-divider-size)
+    var(--workspace-inspector-width, 320px);
+}
+
+.workspace-view--center-right {
+  grid-template-columns: minmax(0, 1fr) var(--workspace-divider-size) var(--workspace-inspector-width, 320px);
+}
+
+.workspace-view--center {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidebar {
@@ -920,6 +947,7 @@ p {
   min-height: 720px;
   min-width: 0;
   overflow: hidden;
+  transition: width 0.3s ease;
 }
 
 .inspector {
@@ -1214,11 +1242,12 @@ p {
 
 .workspace-toolbar {
   display: flex;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
   align-items: center;
-  gap: 10px;
-  max-width: none;
+  justify-content: space-between;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  min-height: 38px;
 }
 
 .toggle-line.compact {
@@ -1447,7 +1476,6 @@ textarea {
   height: 100%;
   min-height: 0;
   background: transparent;
-  font-size: 0.95rem;
 }
 
 .code-editor-shell .cm-scroller {

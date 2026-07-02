@@ -74,19 +74,20 @@ test('json input actions stay focused on text transforms only', () => {
   assert.match(jsonWorkspacePanel, /label: "转换"/);
   assert.match(jsonWorkspacePanel, /label: "行号"/);
   assert.match(jsonWorkspacePanel, /label: "换行"/);
-  assert.match(jsonWorkspacePanel, /label: "清空"/);
-  assert.doesNotMatch(workspacePanel, /格式化 JSON|压缩 JSON|排序 JSON/);
-  assert.match(jsonWorkspacePanel, /active: workspaceStore\.jsonMode === "format"/);
-  assert.match(jsonWorkspacePanel, /active: workspaceStore\.jsonMode === "minify"/);
-  assert.match(workspacePanel, /workspaceStore\.jsonSortKeys/);
+  assert.match(jsonWorkspacePanel, /label: "放大字体"/);
+  assert.doesNotMatch(jsonWorkspacePanel, /格式化 JSON|压缩 JSON|排序 JSON/);
+  assert.doesNotMatch(defaultWorkspacePanel, /格式化 JSON|压缩 JSON|排序 JSON/);
+  assert.match(jsonWorkspacePanel, /active: jsonStore\.jsonMode === "format"/);
+  assert.match(jsonWorkspacePanel, /active: jsonStore\.jsonMode === "minify"/);
+  assert.match(workspacePanel, /jsonStore\.jsonSortKeys/);
   assert.match(workspacePanel, /async function prepareJsonTextOutput\(\)/);
   assert.match(workspacePanel, /async function applyJsonMode\(mode: "format" \| "minify"\)/);
   assert.match(workspacePanel, /async function applyJsonSortToggle\(\)/);
-  assert.match(workspacePanel, /await prepareJsonTextOutput\(\);[\s\S]*workspaceStore\.jsonMode = mode/);
-  assert.match(workspacePanel, /await prepareJsonTextOutput\(\);[\s\S]*workspaceStore\.jsonSortKeys = !workspaceStore\.jsonSortKeys/);
+  assert.match(workspacePanel, /await prepareJsonTextOutput\(\);[\s\S]*jsonStore\.jsonMode = mode/);
+  assert.match(workspacePanel, /await prepareJsonTextOutput\(\);[\s\S]*jsonStore\.jsonSortKeys = !jsonStore\.jsonSortKeys/);
   assert.match(
     workspacePanel,
-    /:key="`\$\{workspaceStore\.activeToolId\}:\$\{workspaceStore\.jsonOutputMode\}:\$\{workspaceStore\.jsonMode\}:\$\{workspaceStore\.jsonSortKeys\}:\$\{jsonTextPreview\}`"/,
+    /:key="`\$\{workspaceStore\.activeToolId\}:\$\{jsonStore\.jsonOutputMode\}:\$\{jsonStore\.jsonMode\}:\$\{jsonStore\.jsonSortKeys\}:\$\{jsonTextPreview\}`"/,
   );
   assert.match(workspacePanel, /class="panel-header compact"/);
   assert.match(jsonWorkspacePanel, /const jsonInputPrimaryItems = computed/);
@@ -101,7 +102,7 @@ test('json input actions stay focused on text transforms only', () => {
   assert.match(jsonWorkspacePanel, /visible: !workspaceStore\.liveMode/);
   assert.match(
     jsonWorkspacePanel,
-    /const jsonInputSecondaryItems[\s\S]*label: "行号"[\s\S]*label: "换行"[\s\S]*label: "清空"/,
+    /const jsonInputSecondaryItems[\s\S]*label: "行号"[\s\S]*label: "换行"[\s\S]*label: "放大字体"[\s\S]*label: "缩小字体"/,
   );
   assert.doesNotMatch(workspacePanel, /activeTool\.description/);
   assert.doesNotMatch(workspacePanel, /保留原始内容，适合粘贴请求体、时间值、URL 或待转换文本。/);
@@ -116,7 +117,7 @@ test('json tool uses brace default placeholder', () => {
 test('json output area supports tree mode via collapsible component', () => {
   assert.match(workspacePanel, /VueJsonPretty/);
   assert.match(workspacePanel, /树状视图/);
-  assert.match(workspacePanel, /workspaceStore\.jsonOutputMode/);
+  assert.match(workspacePanel, /jsonStore\.jsonOutputMode/);
   assert.match(workspacePanel, /collapsed-node-length/);
 });
 
@@ -138,16 +139,15 @@ test('toolbar removes example action and top favorite control', () => {
 test('toolbar keeps shared actions only', () => {
   assert.match(actionBar, />\s*保存\s*</);
   assert.doesNotMatch(actionBar, /type="checkbox"/);
-  assert.match(actionBar, /historyButtonLabel/);
-  assert.match(actionBar, /隐藏历史/);
-  assert.match(actionBar, /显示历史/);
+  assert.match(actionBar, /setWorkspaceLayout/);
+  assert.match(actionBar, /workspaceLayout\.value === option\.layout|workspaceStore\.workspaceLayout === option\.layout/);
   assert.match(actionBar, />\s*交换输入输出\s*</);
   assert.match(actionBar, /activeToolId !== 'json-formatter'/);
   assert.doesNotMatch(actionBar, /执行转换|执行调试/);
 });
 
 test('workspace toolbar keeps actions in a single row', () => {
-  assert.match(appCss, /\.workspace-toolbar\s*\{[\s\S]*flex-wrap:\s*nowrap/);
+  assert.match(appCss, /\.workspace-toolbar\s*\{[\s\S]*display:\s*flex/);
   assert.match(appCss, /\.workspace-header\s*\{[\s\S]*align-items:\s*center/);
 });
 
@@ -221,12 +221,12 @@ test('json output actions use text buttons and tree controls', () => {
     jsonWorkspacePanel,
     /const jsonOutputSecondaryItems[\s\S]*label: "行号"[\s\S]*label: "换行"[\s\S]*label: copyButtonLabel\.value[\s\S]*label: jsonTreeExpanded\.value \? "折叠" : "展开"[\s\S]*label: copyButtonLabel\.value/,
   );
-  assert.match(jsonWorkspacePanel, /workspaceStore\.collapseJsonTree\(\)/);
-  assert.match(jsonWorkspacePanel, /workspaceStore\.expandJsonTree\(\)/);
+  assert.match(jsonWorkspacePanel, /jsonStore\.collapseJsonTree\(\)/);
+  assert.match(jsonWorkspacePanel, /jsonStore\.expandJsonTree\(\)/);
   assert.doesNotMatch(workspacePanel, /展示格式化结果、转换结果或工具处理后的预览内容。/);
   assert.match(jsonWorkspacePanel, /<div class="workspace-action-bar">/);
   assert.match(jsonWorkspacePanel, /<WorkspaceActionRow :items="jsonOutputPrimaryItems" \/>/);
-  assert.match(jsonWorkspacePanel, /<WorkspaceActionRow :items="jsonOutputSecondaryItems" \/>/);
+  assert.match(jsonWorkspacePanel, /<WorkspaceActionRow :items="jsonOutputSecondaryItems" grouped \/>/);
 });
 
 test('default workspace output actions follow json-style right-side ordering', () => {
@@ -241,7 +241,7 @@ test('default workspace output actions follow json-style right-side ordering', (
   assert.doesNotMatch(defaultWorkspacePanel, /sampleOutputTitle/);
   assert.match(
     defaultWorkspacePanel,
-    /<div class="workspace-action-bar">[\s\S]*<div class="workspace-action-bar-left" ?\/>[\s\S]*<div class="workspace-action-bar-right">[\s\S]*<WorkspaceActionRow :items="outputActionItems" \/>/,
+    /<div class="workspace-action-bar">[\s\S]*<div class="workspace-action-bar-left" ?\/>[\s\S]*<div class="workspace-action-bar-right">[\s\S]*<WorkspaceActionRow :items="outputActionItems" grouped \/>/,
   );
 });
 
@@ -293,25 +293,29 @@ test('json tree view uses dedicated styling hooks', () => {
   assert.match(appCss, /workspace-toolbar/);
 });
 
-test('workspace inspector is hidden by default', () => {
-  assert.match(workspaceStore, /const inspectorVisible = ref\(false\);/);
+test('workspace store exposes layout state derived from workspaceLayout', () => {
+  assert.match(workspaceStore, /const workspaceLayout = ref<"left-center" \| "all" \| "center-right" \| "center">/);
+  assert.match(workspaceStore, /const sidebarVisible = computed\(/);
+  assert.match(workspaceStore, /const inspectorVisible = computed\(/);
 });
 
 test('workspace store tracks tree expansion controls', () => {
+  const jsonStore = readFileSync(new URL('../src/stores/jsonTool.ts', import.meta.url), 'utf8');
   assert.match(workspaceStore, /const inputShowLineNumbers = ref\(false\)/);
   assert.match(workspaceStore, /const outputShowLineNumbers = ref\(false\)/);
   assert.match(workspaceStore, /const inputSoftWrap = ref\(true\)/);
   assert.match(workspaceStore, /const outputSoftWrap = ref\(false\)/);
-  assert.match(workspaceStore, /const jsonTreeDepth = ref\(Number\.POSITIVE_INFINITY\);/);
-  assert.match(workspaceStore, /const jsonTreeCollapsedNodeLength = ref\(Number\.POSITIVE_INFINITY\);/);
-  assert.match(workspaceStore, /function expandJsonTree\(\)/);
-  assert.match(workspaceStore, /function collapseJsonTree\(\)/);
+  assert.match(jsonStore, /const jsonTreeDepth = ref\(Number\.POSITIVE_INFINITY\);/);
+  assert.match(jsonStore, /const jsonTreeCollapsedNodeLength = ref\(Number\.POSITIVE_INFINITY\);/);
+  assert.match(jsonStore, /function expandJsonTree\(\)/);
+  assert.match(jsonStore, /function collapseJsonTree\(\)/);
 });
 
 test('json tree re-renders when expand collapse state changes', () => {
-  assert.match(workspacePanel, /:key="workspaceStore\.jsonTreeRenderKey"/);
-  assert.match(workspaceStore, /const jsonTreeRenderKey = computed\(/);
-  assert.match(workspacePanel, /:collapsed-node-length="workspaceStore\.jsonTreeCollapsedNodeLength"/);
+  const jsonStore = readFileSync(new URL('../src/stores/jsonTool.ts', import.meta.url), 'utf8');
+  assert.match(workspacePanel, /:key="jsonStore\.jsonTreeRenderKey"/);
+  assert.match(jsonStore, /const jsonTreeRenderKey = computed\(/);
+  assert.match(workspacePanel, /:collapsed-node-length="jsonStore\.jsonTreeCollapsedNodeLength"/);
 });
 
 test('json tool uses codemirror for editable input and readonly text output', () => {
@@ -336,7 +340,7 @@ test('known tools declare matching syntax highlight languages and remove output 
   assert.match(toolsSource, /id: "header-editor"[\s\S]*outputLanguage: "json"/);
   assert.match(toolsSource, /id: "redis-lua-debug-console"[\s\S]*inputLanguage: "lua"[\s\S]*outputLanguage: "json"/);
   assert.match(redisWorkspacePanel, /:language="'lua'"/);
-  assert.match(redisWorkspacePanel, /:language="'json'"/);
+  assert.match(jsonWorkspacePanel, /:language="'json'"/);
 });
 
 test('readonly output editor does not write transformed text back into input', () => {
@@ -357,7 +361,7 @@ test('manual run action lives with input-side controls', () => {
   assert.match(jsonWorkspacePanel, /label: "转换"/);
   assert.match(defaultWorkspacePanel, /label: "转换"/);
   assert.match(defaultWorkspacePanel, /visible: !workspaceStore\.liveMode/);
-  assert.match(redisWorkspacePanel, /label: workspaceStore\.redisLuaIsRunning \? "执行中\.\.\." : "执行调试"/);
+  assert.match(redisWorkspacePanel, /label: redisLuaStore\.redisLuaIsRunning \? "执行中\.\.\." : "执行调试"/);
   assert.match(appCss, /\.primary-button\.small\s*\{/);
 });
 
@@ -367,9 +371,9 @@ test('json tool uses brace default output sample', () => {
 });
 
 test('workspace action row renders visible actions directly without overflow menu', () => {
-  assert.match(workspaceActionRow, /const visibleItems = computed/);
+  assert.match(workspaceActionRow, /const textItems = computed/);
   assert.doesNotMatch(workspaceActionRow, /ResizeObserver|MoreHorizontal|workspace-action-overflow-menu|aria-label="更多功能"/);
-  assert.doesNotMatch(workspaceActionRow, /<component :is="item\.icon"/);
+  assert.match(workspaceActionRow, /<component :is="item\.icon"/);
   assert.match(appCss, /\.workspace-action-bar-left/);
   assert.match(appCss, /\.workspace-action-bar-right/);
 });

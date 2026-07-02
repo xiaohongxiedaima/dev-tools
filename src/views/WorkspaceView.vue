@@ -87,11 +87,12 @@ onBeforeUnmount(() => {
 <template>
   <section
     class="workspace-view"
-    :class="{ 'workspace-view--inspector-hidden': !workspaceStore.inspectorVisible }"
+    :class="`workspace-view--${workspaceStore.workspaceLayout}`"
     :style="workspaceLayoutStyle"
   >
-    <ToolSidebar />
+    <ToolSidebar v-if="workspaceStore.sidebarVisible" />
     <div
+      v-if="workspaceStore.sidebarVisible"
       class="workspace-resize-handle workspace-resize-handle--sidebar"
       role="separator"
       aria-label="调整左侧工具导航宽度"

@@ -25,10 +25,7 @@ import {
   type WorkspaceHistorySnapshot,
   type WorkspaceHistorySource,
 } from "../lib/workspace-history";
-import {
-  parseRedisLuaArrayInput,
-  tryParseRedisLuaArray,
-} from "../lib/redis-lua-debug";
+import { parseRedisLuaArrayInput } from "../lib/redis-lua-debug";
 import { invokeRedisLuaDebug } from "../lib/redis-lua-debug-api";
 import { useRedisLuaStore } from "./redisLua";
 import { useJsonToolStore } from "./jsonTool";
@@ -73,12 +70,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const outputShowLineNumbers = ref(false);
   const inputSoftWrap = ref(true);
   const outputSoftWrap = ref(false);
+  const inputFontSize = ref(14);
+  const outputFontSize = ref(14);
   const liveMode = ref(true);
   const base64Mode = ref<Base64TransformMode>("decode");
   const favoriteToolIds = ref<string[]>([...defaultFavoriteToolIds]);
   const recentToolHistory = ref<string[]>([...recentToolIds]);
   const favoritePresetNames = ref(["API health check", "Open SQLite shell"]);
-  const inspectorVisible = ref(false);
+  const workspaceLayout = ref<"left-center" | "all" | "center-right" | "center">("center");
+  const sidebarVisible = computed(() => workspaceLayout.value === "left-center" || workspaceLayout.value === "all");
+  const inspectorVisible = computed(() => workspaceLayout.value === "all" || workspaceLayout.value === "center-right");
   const openInspectorSections = ref<string[]>([
     "manual-history",
     "auto-history",
@@ -249,6 +250,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     outputSoftWrap.value = value;
   }
 
+  function zoomEditorFont(side: "input" | "output", delta: number) {
+    const ref = side === "input" ? inputFontSize : outputFontSize;
+    const next = ref.value + delta;
+    ref.value = Math.min(Math.max(next, 10), 28);
+  }
+
   function setBase64Mode(mode: Base64TransformMode) {
     base64Mode.value = mode;
   }
@@ -273,7 +280,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       if (!redisUrl) {
         const message = "Redis 地址不能为空。";
         manualOutput.value = message;
-        redisLuaStore.redisLuaLastResponse = null;
+        redisLuaStore.redisLuaLastResponse = {
+          success: false,
+          mode: redisLuaStore.redisLuaExecutionMode,
+          resultPreview: "",
+          error: message,
+          trace: [],
+          logs: [],
+        };
         return;
       }
 
@@ -285,7 +299,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         manualOutput.value = message;
-        redisLuaStore.redisLuaLastResponse = null;
+        redisLuaStore.redisLuaLastResponse = {
+          success: false,
+          mode: redisLuaStore.redisLuaExecutionMode,
+          resultPreview: "",
+          error: message,
+          trace: [],
+          logs: [],
+        };
         return;
       }
 
@@ -308,7 +329,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         errorMessage.value = message;
-        redisLuaStore.redisLuaLastResponse = null;
+        redisLuaStore.redisLuaLastResponse = {
+          success: false,
+          mode: redisLuaStore.redisLuaExecutionMode,
+          resultPreview: "",
+          error: message,
+          trace: [],
+          logs: [],
+        };
         manualOutput.value = message;
       } finally {
         redisLuaStore.redisLuaIsRunning = false;
@@ -334,7 +362,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   function toggleInspectorVisibility() {
-    inspectorVisible.value = !inspectorVisible.value;
+    workspaceLayout.value = inspectorVisible.value ? "left-center" : "all";
+  }
+
+  function toggleSidebarVisibility() {
+    workspaceLayout.value = sidebarVisible.value ? "center-right" : "all";
+  }
+
+  function setWorkspaceLayout(layout: "left-center" | "all" | "center-right" | "center") {
+    workspaceLayout.value = layout;
   }
 
   async function refreshPresets() {
@@ -371,8 +407,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
                 keysText: redisLuaStore.redisLuaKeysText,
                 argvText: redisLuaStore.redisLuaArgvText,
                 executionMode: redisLuaStore.redisLuaExecutionMode,
-                keysInputMode: redisLuaStore.redisLuaKeysInputMode,
-                argvInputMode: redisLuaStore.redisLuaArgvInputMode,
               },
             }
           : {},
@@ -499,10 +533,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       redisLuaStore.redisLuaKeysText = snapshot.toolState.redisLua.keysText;
       redisLuaStore.redisLuaArgvText = snapshot.toolState.redisLua.argvText;
       redisLuaStore.redisLuaExecutionMode = snapshot.toolState.redisLua.executionMode;
-      redisLuaStore.redisLuaKeysInputMode = snapshot.toolState.redisLua.keysInputMode ?? "json";
-      redisLuaStore.redisLuaArgvInputMode = snapshot.toolState.redisLua.argvInputMode ?? "json";
-      redisLuaStore.redisLuaKeysItems = [...(tryParseRedisLuaArray(redisLuaStore.redisLuaKeysText) ?? [])];
-      redisLuaStore.redisLuaArgvItems = [...(tryParseRedisLuaArray(redisLuaStore.redisLuaArgvText) ?? [])];
     }
 
     rememberTool(snapshot.toolId);
@@ -560,12 +590,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     inputShowLineNumbers,
     inputSoftWrap,
     inspectorVisible,
+    sidebarVisible,
     isInitializing,
     isLoading,
+    editorFontSize: inputFontSize,
+    inputFontSize,
     jsonTreeData,
     lastAutoHistorySnapshot,
     liveMode,
     manualHistory,
+    outputFontSize,
     outputPreview,
     outputShowLineNumbers,
     outputSoftWrap,
@@ -587,11 +621,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     setOutputShowLineNumbers,
     setOutputSoftWrap,
     setSearchTerm,
+    setWorkspaceLayout,
     runCurrentTransform,
     swapInputAndOutputPreview,
     toggleInspectorSection,
     toggleInspectorVisibility,
+    toggleSidebarVisibility,
     toggleFavorite,
+    tools,
+    workspaceLayout,
+    zoomEditorFont,
     toolStats,
     workspaceTips,
   };

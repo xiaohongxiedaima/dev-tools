@@ -3,13 +3,10 @@ import { defineStore } from "pinia";
 import {
   createDefaultRedisLuaHistoryState,
   createRedisLuaSavedAddressId,
-  formatRedisLuaArrayAsJson,
   loadRedisLuaSavedAddresses,
   persistRedisLuaSavedAddresses,
-  tryParseRedisLuaArray,
   type RedisLuaDebugResponse,
   type RedisLuaExecutionMode,
-  type RedisLuaInputMode,
   type RedisLuaSavedAddress,
 } from "../lib/redis-lua-debug";
 
@@ -19,11 +16,7 @@ export const useRedisLuaStore = defineStore("redisLua", () => {
   const redisLuaKeysText = ref(redisLuaDefaults.keysText);
   const redisLuaArgvText = ref(redisLuaDefaults.argvText);
   const redisLuaExecutionMode = ref<RedisLuaExecutionMode>(redisLuaDefaults.executionMode);
-  const redisLuaKeysInputMode = ref<RedisLuaInputMode>(redisLuaDefaults.keysInputMode ?? "json");
-  const redisLuaArgvInputMode = ref<RedisLuaInputMode>(redisLuaDefaults.argvInputMode ?? "json");
   const redisLuaSavedAddresses = ref<RedisLuaSavedAddress[]>(loadRedisLuaSavedAddresses());
-  const redisLuaKeysItems = ref<string[]>([]);
-  const redisLuaArgvItems = ref<string[]>([]);
   const redisLuaIsRunning = ref(false);
   const redisLuaLastResponse = ref<RedisLuaDebugResponse | null>(null);
 
@@ -33,8 +26,6 @@ export const useRedisLuaStore = defineStore("redisLua", () => {
     redisLuaKeysText.value = defaults.keysText;
     redisLuaArgvText.value = defaults.argvText;
     redisLuaExecutionMode.value = defaults.executionMode;
-    redisLuaKeysInputMode.value = defaults.keysInputMode ?? "json";
-    redisLuaArgvInputMode.value = defaults.argvInputMode ?? "json";
     redisLuaIsRunning.value = false;
     redisLuaLastResponse.value = null;
   }
@@ -53,71 +44,6 @@ export const useRedisLuaStore = defineStore("redisLua", () => {
 
   function setRedisLuaExecutionMode(mode: RedisLuaExecutionMode) {
     redisLuaExecutionMode.value = mode;
-  }
-
-  /**
-   * 切换 KEYS/ARGV 的输入模式，并在切换时做双向同步：
-   * - json -> items：把当前 JSON 文本解析为逐项列表；解析失败则用空列表。
-   * - items -> json：把逐项列表序列化为 JSON 数组文本，写回 keysText/argvText。
-   */
-  function setRedisLuaKeysInputMode(mode: RedisLuaInputMode) {
-    if (redisLuaKeysInputMode.value === mode) {
-      return;
-    }
-    if (mode === "items") {
-      redisLuaKeysItems.value = [...(tryParseRedisLuaArray(redisLuaKeysText.value) ?? [])];
-    } else {
-      redisLuaKeysText.value = formatRedisLuaArrayAsJson(redisLuaKeysItems.value);
-    }
-    redisLuaKeysInputMode.value = mode;
-  }
-
-  function setRedisLuaArgvInputMode(mode: RedisLuaInputMode) {
-    if (redisLuaArgvInputMode.value === mode) {
-      return;
-    }
-    if (mode === "items") {
-      redisLuaArgvItems.value = [...(tryParseRedisLuaArray(redisLuaArgvText.value) ?? [])];
-    } else {
-      redisLuaArgvText.value = formatRedisLuaArrayAsJson(redisLuaArgvItems.value);
-    }
-    redisLuaArgvInputMode.value = mode;
-  }
-
-  function updateRedisLuaKeysItem(index: number, value: string) {
-    if (index < 0 || index >= redisLuaKeysItems.value.length) {
-      return;
-    }
-    redisLuaKeysItems.value = redisLuaKeysItems.value.map((item, i) => (i === index ? value : item));
-    redisLuaKeysText.value = formatRedisLuaArrayAsJson(redisLuaKeysItems.value);
-  }
-
-  function addRedisLuaKeysItem() {
-    redisLuaKeysItems.value = [...redisLuaKeysItems.value, ""];
-    redisLuaKeysText.value = formatRedisLuaArrayAsJson(redisLuaKeysItems.value);
-  }
-
-  function removeRedisLuaKeysItem(index: number) {
-    redisLuaKeysItems.value = redisLuaKeysItems.value.filter((_, i) => i !== index);
-    redisLuaKeysText.value = formatRedisLuaArrayAsJson(redisLuaKeysItems.value);
-  }
-
-  function updateRedisLuaArgvItem(index: number, value: string) {
-    if (index < 0 || index >= redisLuaArgvItems.value.length) {
-      return;
-    }
-    redisLuaArgvItems.value = redisLuaArgvItems.value.map((item, i) => (i === index ? value : item));
-    redisLuaArgvText.value = formatRedisLuaArrayAsJson(redisLuaArgvItems.value);
-  }
-
-  function addRedisLuaArgvItem() {
-    redisLuaArgvItems.value = [...redisLuaArgvItems.value, ""];
-    redisLuaArgvText.value = formatRedisLuaArrayAsJson(redisLuaArgvItems.value);
-  }
-
-  function removeRedisLuaArgvItem(index: number) {
-    redisLuaArgvItems.value = redisLuaArgvItems.value.filter((_, i) => i !== index);
-    redisLuaArgvText.value = formatRedisLuaArrayAsJson(redisLuaArgvItems.value);
   }
 
   function addRedisLuaSavedAddress(label: string, url: string) {
@@ -160,11 +86,7 @@ export const useRedisLuaStore = defineStore("redisLua", () => {
     redisLuaKeysText,
     redisLuaArgvText,
     redisLuaExecutionMode,
-    redisLuaKeysInputMode,
-    redisLuaArgvInputMode,
     redisLuaSavedAddresses,
-    redisLuaKeysItems,
-    redisLuaArgvItems,
     redisLuaIsRunning,
     redisLuaLastResponse,
     applyRedisLuaDefaults,
@@ -172,14 +94,6 @@ export const useRedisLuaStore = defineStore("redisLua", () => {
     setRedisLuaKeysText,
     setRedisLuaArgvText,
     setRedisLuaExecutionMode,
-    setRedisLuaKeysInputMode,
-    setRedisLuaArgvInputMode,
-    updateRedisLuaKeysItem,
-    addRedisLuaKeysItem,
-    removeRedisLuaKeysItem,
-    updateRedisLuaArgvItem,
-    addRedisLuaArgvItem,
-    removeRedisLuaArgvItem,
     addRedisLuaSavedAddress,
     updateRedisLuaSavedAddress,
     deleteRedisLuaSavedAddress,

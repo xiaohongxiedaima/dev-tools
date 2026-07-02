@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { List, WrapText, ZoomIn, ZoomOut } from "lucide-vue-next";
 import { useWorkspaceStore } from "../../stores/workspace";
 import CodeEditor from "./CodeEditor.vue";
 import WorkspaceActionRow from "./WorkspaceActionRow.vue";
@@ -66,6 +67,7 @@ const inputSecondaryActionItems = computed((): WorkspaceActionItem[] => [
   {
     key: "input-lines",
     label: "行号",
+    icon: List,
     active: workspaceStore.inputShowLineNumbers,
     pressed: workspaceStore.inputShowLineNumbers,
     onClick: () => {
@@ -75,6 +77,7 @@ const inputSecondaryActionItems = computed((): WorkspaceActionItem[] => [
   {
     key: "input-wrap",
     label: "换行",
+    icon: WrapText,
     active: workspaceStore.inputSoftWrap,
     pressed: workspaceStore.inputSoftWrap,
     onClick: () => {
@@ -82,17 +85,23 @@ const inputSecondaryActionItems = computed((): WorkspaceActionItem[] => [
     },
   },
   {
-    key: "input-clear",
-    label: "清空",
-    onClick: () => {
-      workspaceStore.setInputValue("");
-    },
+    key: "font-zoom-in",
+    label: "放大字体",
+    icon: ZoomIn,
+    onClick: () => workspaceStore.zoomEditorFont("input", 1),
+  },
+  {
+    key: "font-zoom-out",
+    label: "缩小字体",
+    icon: ZoomOut,
+    onClick: () => workspaceStore.zoomEditorFont("input", -1),
   },
 ]);
 const outputActionItems = computed((): WorkspaceActionItem[] => [
   {
     key: "output-lines",
     label: "行号",
+    icon: List,
     active: workspaceStore.outputShowLineNumbers,
     pressed: workspaceStore.outputShowLineNumbers,
     onClick: () => {
@@ -102,11 +111,24 @@ const outputActionItems = computed((): WorkspaceActionItem[] => [
   {
     key: "output-wrap",
     label: "换行",
+    icon: WrapText,
     active: workspaceStore.outputSoftWrap,
     pressed: workspaceStore.outputSoftWrap,
     onClick: () => {
       workspaceStore.outputSoftWrap = !workspaceStore.outputSoftWrap;
     },
+  },
+  {
+    key: "font-zoom-in",
+    label: "放大字体",
+    icon: ZoomIn,
+    onClick: () => workspaceStore.zoomEditorFont("output", 1),
+  },
+  {
+    key: "font-zoom-out",
+    label: "缩小字体",
+    icon: ZoomOut,
+    onClick: () => workspaceStore.zoomEditorFont("output", -1),
   },
   {
     key: "copy",
@@ -167,7 +189,7 @@ async function runActiveTool() {
               <WorkspaceActionRow :items="inputPrimaryActionItems" />
             </div>
             <div class="workspace-action-bar-right">
-              <WorkspaceActionRow :items="inputSecondaryActionItems" />
+              <WorkspaceActionRow :items="inputSecondaryActionItems" grouped />
             </div>
           </div>
         </div>
@@ -196,6 +218,7 @@ async function runActiveTool() {
           :placeholder="workspaceStore.activeTool.placeholder"
           :show-line-numbers="workspaceStore.inputShowLineNumbers"
           :wrap="workspaceStore.inputSoftWrap"
+          :font-size="workspaceStore.inputFontSize"
           @update:model-value="workspaceStore.setInputValue"
           @blur="workspaceStore.saveAutoHistoryOnInputBlur"
         />
@@ -218,7 +241,7 @@ async function runActiveTool() {
           <div class="workspace-action-bar">
             <div class="workspace-action-bar-left" />
             <div class="workspace-action-bar-right">
-              <WorkspaceActionRow :items="outputActionItems" />
+              <WorkspaceActionRow :items="outputActionItems" grouped />
             </div>
           </div>
         </div>
@@ -247,6 +270,7 @@ async function runActiveTool() {
           :readonly="true"
           :show-line-numbers="workspaceStore.outputShowLineNumbers"
           :wrap="workspaceStore.outputSoftWrap"
+          :font-size="workspaceStore.outputFontSize"
         />
       </div>
     </article>

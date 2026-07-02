@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ChevronDown, Star } from "lucide-vue-next";
+import { Star, ChevronDown } from "lucide-vue-next";
 import { useWorkspaceStore } from "../../stores/workspace";
 
 const router = useRouter();
@@ -12,10 +12,6 @@ const expandedCategories = reactive<Set<string>>(
 );
 
 const sidebarScroll = ref<HTMLElement | null>(null);
-
-function goHome() {
-  void router.push({ name: "home" });
-}
 
 function openTool(toolId: string) {
   workspaceStore.setActiveTool(toolId);
@@ -49,7 +45,6 @@ onMounted(scrollActiveToolIntoView);
   <aside class="sidebar shell-card">
     <div class="sidebar-header">
       <h2>工具导航</h2>
-      <button class="ghost-button small" type="button" @click="goHome">首页</button>
     </div>
 
     <div ref="sidebarScroll" class="sidebar-scroll">
@@ -80,6 +75,7 @@ onMounted(scrollActiveToolIntoView);
             class="tool-nav"
             :class="{ active: workspaceStore.activeTool.id === tool.id }"
             type="button"
+            :title="tool.name"
             @click="openTool(tool.id)"
           >
             <span class="tool-nav-copy">

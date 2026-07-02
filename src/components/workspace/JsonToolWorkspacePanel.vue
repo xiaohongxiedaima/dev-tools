@@ -2,6 +2,7 @@
 import { computed, nextTick, ref } from "vue";
 import VueJsonPretty from "vue-json-pretty";
 import "vue-json-pretty/lib/styles.css";
+import { List, WrapText, ZoomIn, ZoomOut } from "lucide-vue-next";
 import { applyJsonTransform } from "../../lib/json-tools";
 import { useWorkspaceStore } from "../../stores/workspace";
 import { useJsonToolStore } from "../../stores/jsonTool";
@@ -91,6 +92,7 @@ const jsonInputSecondaryItems = computed((): WorkspaceActionItem[] => [
   {
     key: "input-lines",
     label: "行号",
+    icon: List,
     active: workspaceStore.inputShowLineNumbers,
     pressed: workspaceStore.inputShowLineNumbers,
     onClick: () => {
@@ -100,6 +102,7 @@ const jsonInputSecondaryItems = computed((): WorkspaceActionItem[] => [
   {
     key: "input-wrap",
     label: "换行",
+    icon: WrapText,
     active: workspaceStore.inputSoftWrap,
     pressed: workspaceStore.inputSoftWrap,
     onClick: () => {
@@ -107,11 +110,16 @@ const jsonInputSecondaryItems = computed((): WorkspaceActionItem[] => [
     },
   },
   {
-    key: "input-clear",
-    label: "清空",
-    onClick: () => {
-      workspaceStore.setInputValue("");
-    },
+    key: "font-zoom-in",
+    label: "放大字体",
+    icon: ZoomIn,
+    onClick: () => workspaceStore.zoomEditorFont("input", 1),
+  },
+  {
+    key: "font-zoom-out",
+    label: "缩小字体",
+    icon: ZoomOut,
+    onClick: () => workspaceStore.zoomEditorFont("input", -1),
   },
 ]);
 const jsonOutputPrimaryItems = computed((): WorkspaceActionItem[] => [
@@ -136,6 +144,7 @@ const jsonOutputSecondaryItems = computed((): WorkspaceActionItem[] => [
   {
     key: "output-lines",
     label: "行号",
+    icon: List,
     active: workspaceStore.outputShowLineNumbers,
     pressed: workspaceStore.outputShowLineNumbers,
     visible: showJsonTextOutputControls.value,
@@ -146,12 +155,27 @@ const jsonOutputSecondaryItems = computed((): WorkspaceActionItem[] => [
   {
     key: "output-wrap",
     label: "换行",
+    icon: WrapText,
     active: workspaceStore.outputSoftWrap,
     pressed: workspaceStore.outputSoftWrap,
     visible: showJsonTextOutputControls.value,
     onClick: () => {
       workspaceStore.outputSoftWrap = !workspaceStore.outputSoftWrap;
     },
+  },
+  {
+    key: "font-zoom-in",
+    label: "放大字体",
+    icon: ZoomIn,
+    visible: showJsonTextOutputControls.value,
+    onClick: () => workspaceStore.zoomEditorFont("output", 1),
+  },
+  {
+    key: "font-zoom-out",
+    label: "缩小字体",
+    icon: ZoomOut,
+    visible: showJsonTextOutputControls.value,
+    onClick: () => workspaceStore.zoomEditorFont("output", -1),
   },
   {
     key: "copy",
@@ -250,7 +274,7 @@ async function runActiveTool() {
               <WorkspaceActionRow :items="jsonInputPrimaryItems" />
             </div>
             <div class="workspace-action-bar-right">
-              <WorkspaceActionRow :items="jsonInputSecondaryItems" />
+              <WorkspaceActionRow :items="jsonInputSecondaryItems" grouped />
             </div>
           </div>
         </div>
@@ -279,6 +303,7 @@ async function runActiveTool() {
           :placeholder="workspaceStore.activeTool.placeholder"
           :show-line-numbers="workspaceStore.inputShowLineNumbers"
           :wrap="workspaceStore.inputSoftWrap"
+          :font-size="workspaceStore.inputFontSize"
           @update:model-value="workspaceStore.setInputValue"
           @blur="workspaceStore.saveAutoHistoryOnInputBlur"
         />
@@ -303,7 +328,7 @@ async function runActiveTool() {
               <WorkspaceActionRow :items="jsonOutputPrimaryItems" />
             </div>
             <div class="workspace-action-bar-right">
-              <WorkspaceActionRow :items="jsonOutputSecondaryItems" />
+              <WorkspaceActionRow :items="jsonOutputSecondaryItems" grouped />
             </div>
           </div>
         </div>
@@ -347,6 +372,7 @@ async function runActiveTool() {
           :readonly="true"
           :show-line-numbers="workspaceStore.outputShowLineNumbers"
           :wrap="workspaceStore.outputSoftWrap"
+          :font-size="workspaceStore.outputFontSize"
         />
       </div>
     </article>

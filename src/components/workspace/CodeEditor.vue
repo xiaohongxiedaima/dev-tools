@@ -20,6 +20,7 @@ const props = withDefaults(
     placeholder?: string;
     showLineNumbers?: boolean;
     wrap?: boolean;
+    fontSize?: number;
   }>(),
   {
     readonly: false,
@@ -27,6 +28,7 @@ const props = withDefaults(
     placeholder: "",
     showLineNumbers: false,
     wrap: true,
+    fontSize: 14,
   },
 );
 
@@ -91,7 +93,6 @@ function findNextMatch(query: string) {
     selection: { anchor: match.from, head: match.to },
     scrollIntoView: true,
   });
-  view.focus();
   return true;
 }
 
@@ -119,7 +120,6 @@ function findPreviousMatch(query: string) {
     selection: { anchor: match.from, head: match.to },
     scrollIntoView: true,
   });
-  view.focus();
   return true;
 }
 
@@ -133,6 +133,7 @@ defineExpose({
   <div
     class="code-editor-shell"
     :class="{ 'code-editor-shell--hide-line-numbers': !props.showLineNumbers }"
+    :style="{ '--editor-font-size': `${props.fontSize}px` }"
     @focusout="handleFocusOut"
   >
     <CodeMirror
@@ -165,6 +166,7 @@ defineExpose({
 .code-editor-shell :deep(.cm-editor) {
   flex: 1;
   min-height: 0;
+  font-size: var(--editor-font-size, 14px);
 }
 
 .code-editor-shell--hide-line-numbers :deep(.cm-gutters) {

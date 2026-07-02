@@ -1,7 +1,5 @@
 export type RedisLuaExecutionMode = "proxy" | "eval";
 
-export type RedisLuaInputMode = "json" | "items";
-
 export type RedisLuaSavedAddress = {
   id: string;
   label: string;
@@ -46,20 +44,26 @@ export type RedisLuaHistoryState = {
   keysText: string;
   argvText: string;
   executionMode: RedisLuaExecutionMode;
-  keysInputMode?: RedisLuaInputMode;
-  argvInputMode?: RedisLuaInputMode;
 };
 
 export const DEFAULT_REDIS_LUA_REDIS_URL = "redis://127.0.0.1:6379/0";
-export const DEFAULT_REDIS_LUA_KEYS_TEXT = "[]";
-export const DEFAULT_REDIS_LUA_ARGV_TEXT = "[]";
+export const DEFAULT_REDIS_LUA_KEYS_TEXT = "";
+export const DEFAULT_REDIS_LUA_ARGV_TEXT = "";
 export const DEFAULT_REDIS_LUA_EXECUTION_MODE: RedisLuaExecutionMode = "proxy";
-export const DEFAULT_REDIS_LUA_KEYS_INPUT_MODE: RedisLuaInputMode = "items";
-export const DEFAULT_REDIS_LUA_ARGV_INPUT_MODE: RedisLuaInputMode = "items";
 export const REDIS_LUA_SAVED_ADDRESSES_STORAGE_KEY = "redis-lua-saved-addresses";
 export const DEFAULT_REDIS_LUA_SAVED_ADDRESSES: RedisLuaSavedAddress[] = [
   { id: "default-local", label: "本地 Redis", url: DEFAULT_REDIS_LUA_REDIS_URL },
 ];
+
+export function createDefaultRedisLuaHistoryState(): RedisLuaHistoryState {
+  return {
+    redisUrl: DEFAULT_REDIS_LUA_REDIS_URL,
+    keysText: DEFAULT_REDIS_LUA_KEYS_TEXT,
+    argvText: DEFAULT_REDIS_LUA_ARGV_TEXT,
+    executionMode: DEFAULT_REDIS_LUA_EXECUTION_MODE,
+  };
+}
+
 export const DEFAULT_REDIS_LUA_SCRIPT = `local current = redis.call("GET", KEYS[1])
 
 if not current then
@@ -71,80 +75,98 @@ return {
   after = redis.call("GET", KEYS[1])
 }`;
 
-function normalizeRedisArrayValue(value: unknown, fieldLabel: string): string[] {
-  if (!Array.isArray(value)) {
-    throw new Error(`${fieldLabel} 必须是 JSON 数组。`);
-  }
-
-  return value.map((entry, index) => {
-    if (typeof entry === "string") {
-      return entry;
-    }
-
-    if (typeof entry === "number" || typeof entry === "boolean") {
-      return String(entry);
-    }
-
-    if (entry === null) {
-      return "";
-    }
-
-    throw new Error(`${fieldLabel} 第 ${index + 1} 项只能是字符串、数字、布尔值或 null。`);
-  });
-}
-
-export function createDefaultRedisLuaHistoryState(): RedisLuaHistoryState {
-  return {
-    redisUrl: DEFAULT_REDIS_LUA_REDIS_URL,
-    keysText: DEFAULT_REDIS_LUA_KEYS_TEXT,
-    argvText: DEFAULT_REDIS_LUA_ARGV_TEXT,
-    executionMode: DEFAULT_REDIS_LUA_EXECUTION_MODE,
-    keysInputMode: DEFAULT_REDIS_LUA_KEYS_INPUT_MODE,
-    argvInputMode: DEFAULT_REDIS_LUA_ARGV_INPUT_MODE,
-  };
-}
-
-export function parseRedisLuaArrayInput(input: string, fieldLabel: string): string[] {
-  const trimmed = input.trim();
-
-  if (!trimmed) {
-    return [];
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch (error) {
-    throw new Error(`${fieldLabel} 不是合法的 JSON：${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  return normalizeRedisArrayValue(parsed, fieldLabel);
-}
-
-export function tryParseRedisLuaArray(input: string): string[] | null {
+/**
+ * 解析 KEYS/ARGV 输入文本为字符串数组。
+ * 普通参数以空格分隔；用双引号或单引号包裹的段（含空格）作为一个整体。
+ * 若整段输入是合法 JSON 对象/数组，则作为单个元素返回。
+ */
+export function parseRedisLuaArrayInput(input: string, _fieldLabel: string): string[] {
   const trimmed = input.trim();
   if (!trimmed) {
     return [];
   }
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (!Array.isArray(parsed)) {
-      return null;
-    }
-    return normalizeRedisArrayValue(parsed, "数组");
-  } catch {
-    return null;
-  }
+  return splitArgTokens(trimmed);
 }
 
 /**
- * 把字符串数组格式化为 JSON 数组文本（保持可读缩进）。
+ * 把输入按空格分割为 token，支持引号包裹含空格的段。
+ * - 只有在 token 起始位置的引号才视为包裹引号
+ * - 被引号包裹的内容作为一个整体，内部空格不拆分
+ * - 以 { 或 [ 开头的 token 会贪婪匹配到对应的闭合括号（处理内部空格和嵌套引号）
+ * - 其余未包裹部分按空格分割
  */
-export function formatRedisLuaArrayAsJson(items: string[]): string {
-  if (items.length === 0) {
-    return "[]";
+function splitArgTokens(input: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+
+  while (i < input.length) {
+    // 跳过空白
+    while (i < input.length && /\s/.test(input[i])) {
+      i++;
+    }
+    if (i >= input.length) {
+      break;
+    }
+
+    const ch = input[i];
+
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      i++; // 跳过起始引号
+      let current = "";
+      while (i < input.length && input[i] !== quote) {
+        current += input[i];
+        i++;
+      }
+      i++; // 跳过结束引号
+      tokens.push(current);
+    } else if (ch === "{" || ch === "[") {
+      const open = ch;
+      const close = ch === "{" ? "}" : "]";
+      let depth = 0;
+      let inStr: string | null = null;
+      let current = "";
+      while (i < input.length) {
+        const c = input[i];
+        if (inStr) {
+          current += c;
+          if (c === inStr && input[i - 1] !== "\\") {
+            inStr = null;
+          }
+          i++;
+          continue;
+        }
+        if (c === '"' || c === "'") {
+          inStr = c;
+          current += c;
+          i++;
+          continue;
+        }
+        if (c === open) {
+          depth++;
+        } else if (c === close) {
+          depth--;
+          if (depth === 0) {
+            current += c;
+            i++;
+            break;
+          }
+        }
+        current += c;
+        i++;
+      }
+      tokens.push(current);
+    } else {
+      let current = "";
+      while (i < input.length && !/\s/.test(input[i])) {
+        current += input[i];
+        i++;
+      }
+      tokens.push(current);
+    }
   }
-  return `[\n${items.map((item) => `  ${JSON.stringify(item)}`).join(",\n")}\n]`;
+
+  return tokens;
 }
 
 /**

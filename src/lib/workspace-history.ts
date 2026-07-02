@@ -26,9 +26,7 @@ export type WorkspaceHistoryToolState = {
     redisUrl: string;
     keysText: string;
     argvText: string;
-    executionMode: "proxy" | "eval";
-    keysInputMode?: "json" | "items";
-    argvInputMode?: "json" | "items";
+    executionMode: 'proxy' | 'eval';
   };
 };
 

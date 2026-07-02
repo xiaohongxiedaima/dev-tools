@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { MoreVertical, Pencil, Plus, Trash2, X } from "lucide-vue-next";
+import { List, MoreVertical, Pencil, Plus, Trash2, WrapText, X, ZoomIn, ZoomOut } from "lucide-vue-next";
 import { useWorkspaceStore } from "../../stores/workspace";
 import { useRedisLuaStore } from "../../stores/redisLua";
+import { parseRedisLuaArrayInput } from "../../lib/redis-lua-debug";
 import CodeEditor from "./CodeEditor.vue";
 import WorkspaceActionRow from "./WorkspaceActionRow.vue";
 import type { WorkspaceActionItem } from "./WorkspaceActionRow.vue";
@@ -15,30 +16,101 @@ const inputEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null);
 const outputEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null);
 const redisLuaTrace = computed(() => redisLuaStore.redisLuaLastResponse?.trace ?? []);
 const redisLuaLogs = computed(() => redisLuaStore.redisLuaLastResponse?.logs ?? []);
-const redisLuaStatusLabel = computed(() => {
+
+const redisLuaStatusKind = computed<"idle" | "running" | "success" | "error">(() => {
   if (redisLuaStore.redisLuaIsRunning) {
-    return "执行中";
+    return "running";
   }
-
   if (!redisLuaStore.redisLuaLastResponse) {
-    return "等待执行";
+    return "idle";
   }
-
-  return redisLuaStore.redisLuaLastResponse.success ? "执行成功" : "执行失败";
+  return redisLuaStore.redisLuaLastResponse.success ? "success" : "error";
 });
+
 const redisLuaModeLabel = computed(() =>
   redisLuaStore.redisLuaExecutionMode === "proxy" ? "本地代理调试" : "真实 EVAL 校验",
 );
-const redisLuaResultLabel = computed(() => {
-  if (redisLuaStore.redisLuaIsRunning || !redisLuaStore.redisLuaLastResponse) {
+
+// 执行耗时汇总（trace 总耗时）
+const redisLuaTotalDuration = computed(() => {
+  const trace = redisLuaStore.redisLuaLastResponse?.trace;
+  if (!trace || trace.length === 0) {
+    return null;
+  }
+  return trace.reduce((sum, entry) => sum + entry.durationMs, 0);
+});
+
+const redisLuaResultIsJson = computed(() => {
+  if (!redisLuaStore.redisLuaLastResponse?.resultPreview) {
+    return false;
+  }
+  const preview = redisLuaStore.redisLuaLastResponse.resultPreview.trim();
+  // 检测是否为 JSON 格式（以 { 或 [ 开头）
+  return (preview.startsWith("{") && preview.endsWith("}")) || (preview.startsWith("[") && preview.endsWith("]"));
+});
+
+const redisLuaFormattedResult = computed(() => {
+  if (!redisLuaStore.redisLuaLastResponse?.resultPreview) {
     return "";
   }
-  const response = redisLuaStore.redisLuaLastResponse;
-  if (!response.success) {
-    return response.error ?? "执行失败";
+  if (redisLuaResultIsJson.value) {
+    try {
+      // 格式化 JSON
+      const parsed = JSON.parse(redisLuaStore.redisLuaLastResponse.resultPreview);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      // 解析失败返回原始内容
+      return redisLuaStore.redisLuaLastResponse.resultPreview;
+    }
   }
-  return response.resultPreview || "执行成功";
+  return redisLuaStore.redisLuaLastResponse.resultPreview;
 });
+
+// KEYS / ARGV 项列表（本地源，支持空项编辑）
+const keysItems = ref<string[]>(parseRedisLuaArrayInput(redisLuaStore.redisLuaKeysText, "KEYS"));
+const argvItems = ref<string[]>(parseRedisLuaArrayInput(redisLuaStore.redisLuaArgvText, "ARGV"));
+
+function onKeysTextInput(event: Event) {
+  const text = (event.target as HTMLInputElement).value;
+  redisLuaStore.setRedisLuaKeysText(text);
+  keysItems.value = parseRedisLuaArrayInput(text, "KEYS");
+}
+
+function updateKeyItem(index: number, value: string) {
+  keysItems.value = keysItems.value.map((item, i) => (i === index ? value : item));
+  redisLuaStore.setRedisLuaKeysText(keysItems.value.join(" "));
+}
+
+function appendKey() {
+  keysItems.value = [...keysItems.value, ""];
+  redisLuaStore.setRedisLuaKeysText(keysItems.value.join(" "));
+}
+
+function removeKeyAt(index: number) {
+  keysItems.value = keysItems.value.filter((_, i) => i !== index);
+  redisLuaStore.setRedisLuaKeysText(keysItems.value.join(" "));
+}
+
+function onArgvTextInput(event: Event) {
+  const text = (event.target as HTMLInputElement).value;
+  redisLuaStore.setRedisLuaArgvText(text);
+  argvItems.value = parseRedisLuaArrayInput(text, "ARGV");
+}
+
+function updateArgvItem(index: number, value: string) {
+  argvItems.value = argvItems.value.map((item, i) => (i === index ? value : item));
+  redisLuaStore.setRedisLuaArgvText(argvItems.value.join(" "));
+}
+
+function appendArgv() {
+  argvItems.value = [...argvItems.value, ""];
+  redisLuaStore.setRedisLuaArgvText(argvItems.value.join(" "));
+}
+
+function removeArgvAt(index: number) {
+  argvItems.value = argvItems.value.filter((_, i) => i !== index);
+  redisLuaStore.setRedisLuaArgvText(argvItems.value.join(" "));
+}
 
 // Redis 地址管理：新增 / 编辑态
 const addressDraftMode = ref<"idle" | "add" | "edit">("idle");
@@ -140,6 +212,7 @@ const inputSecondaryActionItems = computed((): WorkspaceActionItem[] => [
   {
     key: "input-lines",
     label: "行号",
+    icon: List,
     active: workspaceStore.inputShowLineNumbers,
     pressed: workspaceStore.inputShowLineNumbers,
     onClick: () => {
@@ -149,6 +222,7 @@ const inputSecondaryActionItems = computed((): WorkspaceActionItem[] => [
   {
     key: "input-wrap",
     label: "换行",
+    icon: WrapText,
     active: workspaceStore.inputSoftWrap,
     pressed: workspaceStore.inputSoftWrap,
     onClick: () => {
@@ -156,11 +230,16 @@ const inputSecondaryActionItems = computed((): WorkspaceActionItem[] => [
     },
   },
   {
-    key: "input-clear",
-    label: "清空",
-    onClick: () => {
-      workspaceStore.setInputValue("");
-    },
+    key: "font-zoom-in",
+    label: "放大字体",
+    icon: ZoomIn,
+    onClick: () => workspaceStore.zoomEditorFont("input", 1),
+  },
+  {
+    key: "font-zoom-out",
+    label: "缩小字体",
+    icon: ZoomOut,
+    onClick: () => workspaceStore.zoomEditorFont("input", -1),
   },
 ]);
 const { workspacePanelsRef, inputPanelStyle, outputPanelStyle, nudgePanelResize, startPanelResize } =
@@ -265,7 +344,7 @@ async function runActiveTool() {
 
             <div class="redis-config-field redis-config-field--full">
               <div class="redis-mode-inline-row">
-                <span class="redis-mode-inline-label">运行模式</span>
+                <span class="redis-field-label">运行模式</span>
                 <button
                   class="ghost-button small redis-tight-btn"
                   type="button"
@@ -287,99 +366,67 @@ async function runActiveTool() {
 
             <div class="redis-config-field redis-config-field--full">
               <div class="redis-array-header">
-                <span>KEYS</span>
-                <div class="redis-array-mode-toggle">
-                  <button
-                    class="ghost-button small redis-tight-btn"
-                    type="button"
-                    :class="{ 'json-action-active': redisLuaStore.redisLuaKeysInputMode === 'json' }"
-                    @click="redisLuaStore.setRedisLuaKeysInputMode('json')"
-                  >
-                    JSON 数组
-                  </button>
-                  <button
-                    class="ghost-button small redis-tight-btn"
-                    type="button"
-                    :class="{ 'json-action-active': redisLuaStore.redisLuaKeysInputMode === 'items' }"
-                    @click="redisLuaStore.setRedisLuaKeysInputMode('items')"
-                  >
-                    逐项输入
+                <span class="redis-field-label">KEYS</span>
+                <input
+                  class="redis-array-input"
+                  :value="redisLuaStore.redisLuaKeysText"
+                  type="text"
+                  placeholder="KEYS[1]  KEYS[2]  ..."
+                  @input="onKeysTextInput"
+                />
+                <div class="redis-array-actions">
+                  <button class="ghost-button small redis-tight-btn icon-only" type="button" title="新增" @click="appendKey">
+                    <Plus :size="14" />
                   </button>
                 </div>
               </div>
-              <input
-                v-if="redisLuaStore.redisLuaKeysInputMode === 'json'"
-                :value="redisLuaStore.redisLuaKeysText"
-                type="text"
-                placeholder='["demo:key"]'
-                @input="redisLuaStore.setRedisLuaKeysText(($event.target as HTMLInputElement).value)"
-              />
-              <div v-else class="redis-items-list">
-                <div v-for="(item, index) in redisLuaStore.redisLuaKeysItems" :key="`keys-${index}`" class="redis-item-row">
-                  <span class="redis-item-index">KEYS[{{ index + 1 }}]</span>
+              <div v-if="keysItems.length > 0" class="redis-parsed-list">
+                <div v-for="(item, index) in keysItems" :key="`keys-${index}`" class="redis-parsed-item">
+                  <span class="redis-parsed-index">KEYS[{{ index + 1 }}]</span>
                   <input
+                    class="redis-parsed-edit"
                     :value="item"
                     type="text"
                     :placeholder="`KEYS[${index + 1}] 值`"
-                    @input="redisLuaStore.updateRedisLuaKeysItem(index, ($event.target as HTMLInputElement).value)"
+                    @input="updateKeyItem(index, ($event.target as HTMLInputElement).value)"
                   />
-                  <button class="ghost-button small redis-tight-btn icon-only" type="button" title="删除该项" @click="redisLuaStore.removeRedisLuaKeysItem(index)">
-                    <X :size="14" />
+                  <button class="ghost-button small redis-tight-btn icon-only" type="button" title="删除" @click="removeKeyAt(index)">
+                    <X :size="12" />
                   </button>
                 </div>
-                <button class="ghost-button small redis-tight-btn redis-item-add" type="button" @click="redisLuaStore.addRedisLuaKeysItem">
-                  <Plus :size="14" />
-                  新增 KEYS 项
-                </button>
               </div>
             </div>
 
             <div class="redis-config-field redis-config-field--full">
               <div class="redis-array-header">
-                <span>ARGV</span>
-                <div class="redis-array-mode-toggle">
-                  <button
-                    class="ghost-button small redis-tight-btn"
-                    type="button"
-                    :class="{ 'json-action-active': redisLuaStore.redisLuaArgvInputMode === 'json' }"
-                    @click="redisLuaStore.setRedisLuaArgvInputMode('json')"
-                  >
-                    JSON 数组
-                  </button>
-                  <button
-                    class="ghost-button small redis-tight-btn"
-                    type="button"
-                    :class="{ 'json-action-active': redisLuaStore.redisLuaArgvInputMode === 'items' }"
-                    @click="redisLuaStore.setRedisLuaArgvInputMode('items')"
-                  >
-                    逐项输入
+                <span class="redis-field-label">ARGV</span>
+                <input
+                  class="redis-array-input"
+                  :value="redisLuaStore.redisLuaArgvText"
+                  type="text"
+                  placeholder="ARGV[1]  ARGV[2]  ..."
+                  @input="onArgvTextInput"
+                />
+                <div class="redis-array-actions">
+                  <button class="ghost-button small redis-tight-btn icon-only" type="button" title="新增" @click="appendArgv">
+                    <Plus :size="14" />
                   </button>
                 </div>
               </div>
-              <input
-                v-if="redisLuaStore.redisLuaArgvInputMode === 'json'"
-                :value="redisLuaStore.redisLuaArgvText"
-                type="text"
-                placeholder='["demo-value"]'
-                @input="redisLuaStore.setRedisLuaArgvText(($event.target as HTMLInputElement).value)"
-              />
-              <div v-else class="redis-items-list">
-                <div v-for="(item, index) in redisLuaStore.redisLuaArgvItems" :key="`argv-${index}`" class="redis-item-row">
-                  <span class="redis-item-index">ARGV[{{ index + 1 }}]</span>
+              <div v-if="argvItems.length > 0" class="redis-parsed-list">
+                <div v-for="(item, index) in argvItems" :key="`argv-${index}`" class="redis-parsed-item">
+                  <span class="redis-parsed-index">ARGV[{{ index + 1 }}]</span>
                   <input
+                    class="redis-parsed-edit"
                     :value="item"
                     type="text"
                     :placeholder="`ARGV[${index + 1}] 值`"
-                    @input="redisLuaStore.updateRedisLuaArgvItem(index, ($event.target as HTMLInputElement).value)"
+                    @input="updateArgvItem(index, ($event.target as HTMLInputElement).value)"
                   />
-                  <button class="ghost-button small redis-tight-btn icon-only" type="button" title="删除该项" @click="redisLuaStore.removeRedisLuaArgvItem(index)">
-                    <X :size="14" />
+                  <button class="ghost-button small redis-tight-btn icon-only" type="button" title="删除" @click="removeArgvAt(index)">
+                    <X :size="12" />
                   </button>
                 </div>
-                <button class="ghost-button small redis-tight-btn redis-item-add" type="button" @click="redisLuaStore.addRedisLuaArgvItem">
-                  <Plus :size="14" />
-                  新增 ARGV 项
-                </button>
               </div>
             </div>
           </div>
@@ -391,7 +438,7 @@ async function runActiveTool() {
           <WorkspaceActionRow :items="inputPrimaryActionItems" />
         </div>
         <div class="workspace-action-bar-right">
-          <WorkspaceActionRow :items="inputSecondaryActionItems" />
+          <WorkspaceActionRow :items="inputSecondaryActionItems" grouped />
         </div>
       </div>
 
@@ -418,6 +465,7 @@ async function runActiveTool() {
           :placeholder="workspaceStore.activeTool.placeholder"
           :show-line-numbers="workspaceStore.inputShowLineNumbers"
           :wrap="workspaceStore.inputSoftWrap"
+          :font-size="workspaceStore.inputFontSize"
           @update:model-value="workspaceStore.setInputValue"
           @blur="workspaceStore.saveAutoHistoryOnInputBlur"
         />
@@ -435,47 +483,67 @@ async function runActiveTool() {
     />
 
     <article class="editor-panel shell-card" :style="outputPanelStyle">
-      <div class="panel-header compact">
-        <div class="panel-header-copy">
-          <div class="redis-summary-row">
-            <span class="mini-badge">{{ redisLuaStatusLabel }}</span>
-            <span>{{ redisLuaModeLabel }}</span>
-            <span v-if="redisLuaResultLabel" class="redis-summary-result" :class="{ 'redis-trace-error': !redisLuaStore.redisLuaLastResponse?.success }">{{ redisLuaResultLabel }}</span>
-            <span>redis.call 轨迹：{{ redisLuaTrace.length }} 条</span>
-            <span>脚本日志：{{ redisLuaLogs.length }} 条</span>
+      <section class="redis-debug-block redis-status-block">
+        <div class="redis-execution-card" :class="`redis-execution-card--${redisLuaStatusKind}`">
+          <div class="redis-execution-card-header">
+            <span class="redis-status-badge" :class="`redis-status-badge--${redisLuaStatusKind}`">
+              <span v-if="redisLuaStatusKind === 'running'" class="redis-status-spinner" />
+            </span>
+            <span class="redis-execution-mode">{{ redisLuaModeLabel }}</span>
+            <div v-if="redisLuaStore.redisLuaLastResponse" class="redis-execution-stats">
+              <span v-if="redisLuaTotalDuration !== null" class="redis-stat">
+                <span class="redis-stat-label">总耗时</span>
+                <span class="redis-stat-value">{{ redisLuaTotalDuration.toFixed(2) }} ms</span>
+              </span>
+              <span class="redis-stat">
+                <span class="redis-stat-label">调用</span>
+                <span class="redis-stat-value">{{ redisLuaTrace.length }}</span>
+              </span>
+              <span class="redis-stat">
+                <span class="redis-stat-label">日志</span>
+                <span class="redis-stat-value">{{ redisLuaLogs.length }}</span>
+              </span>
+            </div>
+          </div>
+
+          <div v-if="redisLuaStatusKind === 'idle'" class="redis-execution-empty">
+            点击「执行调试」运行 Lua 脚本
+          </div>
+
+          <div v-if="redisLuaStore.redisLuaLastResponse && !redisLuaStore.redisLuaLastResponse.success" class="redis-execution-error">
+            <strong>错误信息</strong>
+            <pre>{{ redisLuaStore.redisLuaLastResponse.error ?? "执行失败" }}</pre>
+          </div>
+
+          <div v-else-if="redisLuaStore.redisLuaLastResponse?.resultPreview" class="redis-execution-result">
+            <div class="redis-execution-result-label">
+              {{ redisLuaResultIsJson ? "返回值（JSON）" : "返回值" }}
+            </div>
+            <pre class="redis-result-preview" :class="{ 'redis-result-json': redisLuaResultIsJson }">{{ redisLuaFormattedResult }}</pre>
           </div>
         </div>
-      </div>
-
-      <section v-if="redisLuaLogs.length > 0" class="redis-debug-block">
-        <div class="redis-debug-block-header">
-          <h3>脚本日志</h3>
-        </div>
-        <article v-for="(entry, index) in redisLuaLogs" :key="`${entry.level}-${index}`" class="redis-log-card">
-          <strong>{{ entry.level }}</strong>
-          <pre>{{ entry.message }}</pre>
-        </article>
       </section>
+
       <section v-if="redisLuaTrace.length > 0" class="redis-debug-block">
         <div class="redis-debug-block-header">
-          <h3>redis.call 轨迹</h3>
+          <h3>Trace ({{ redisLuaTrace.length }})</h3>
         </div>
         <table class="redis-trace-table">
           <thead>
             <tr>
-              <th>序列</th>
-              <th>代码行</th>
+              <th>#</th>
+              <th class="redis-trace-line">行</th>
               <th>命令</th>
               <th>key</th>
               <th>参数</th>
               <th>结果</th>
-              <th>耗时</th>
+              <th class="redis-trace-duration">ms</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="entry in redisLuaTrace" :key="entry.index">
               <td>{{ entry.index }}</td>
-              <td>{{ entry.sourceLine ?? "-" }}</td>
+              <td class="redis-trace-line">{{ entry.sourceLine ?? "-" }}</td>
               <td>{{ entry.command }}</td>
               <td>{{ entry.args[0] ?? "-" }}</td>
               <td>{{ entry.args.slice(1).join(", ") || "-" }}</td>
@@ -484,11 +552,301 @@ async function runActiveTool() {
                 <span v-else-if="entry.error" class="redis-trace-error">{{ entry.error }}</span>
                 <span v-else>-</span>
               </td>
-              <td>{{ entry.durationMs.toFixed(2) }} ms</td>
+              <td class="redis-trace-duration">{{ entry.durationMs.toFixed(2) }}</td>
             </tr>
           </tbody>
         </table>
       </section>
+
+      <section v-if="redisLuaLogs.length > 0" class="redis-debug-block">
+        <div class="redis-debug-block-header">
+          <h3>脚本日志 ({{ redisLuaLogs.length }})</h3>
+        </div>
+        <article v-for="(entry, index) in redisLuaLogs" :key="`${entry.level}-${index}`" class="redis-log-card">
+          <strong>{{ entry.level }}</strong>
+          <pre>{{ entry.message }}</pre>
+        </article>
+      </section>
     </article>
   </section>
 </template>
+
+<style scoped>
+.redis-debug-block {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.redis-debug-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.redis-debug-block-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* —— 执行状态卡片 —— */
+.redis-execution-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--color-surface);
+}
+
+.redis-execution-card--success {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.redis-execution-card--error {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.redis-execution-card--running {
+  border-color: var(--dt-primary, #7c3aed);
+}
+
+.redis-execution-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.redis-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.redis-status-badge--idle {
+  background: var(--color-text-secondary);
+}
+
+.redis-status-badge--running {
+  background: var(--dt-primary, #7c3aed);
+}
+
+.redis-status-badge--success {
+  background: rgb(22, 163, 74);
+}
+
+.redis-status-badge--error {
+  background: rgb(220, 38, 38);
+}
+
+.redis-status-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: redis-spin 0.6s linear infinite;
+}
+
+@keyframes redis-spin {
+  to { transform: rotate(360deg); }
+}
+
+.redis-execution-mode {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.redis-execution-stats {
+  display: flex;
+  gap: 20px;
+  margin-left: auto;
+  flex-wrap: nowrap;
+}
+
+.redis-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.redis-stat-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.redis-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.redis-execution-empty {
+  margin-top: 10px;
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-secondary);
+  border-radius: 8px;
+}
+
+.redis-execution-error {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.redis-execution-error strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: rgb(220, 38, 38);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.redis-execution-error pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgb(185, 28, 28);
+}
+
+.redis-execution-result {
+  margin-top: 12px;
+}
+
+.redis-execution-result-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.redis-result-preview {
+  margin: 0;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.redis-result-json {
+  background: var(--color-syntax-background);
+  border-color: var(--color-border);
+}
+
+.redis-trace-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.redis-trace-table th,
+.redis-trace-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.redis-trace-table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-secondary);
+  position: sticky;
+  top: 0;
+}
+
+.redis-trace-table .col-index {
+  width: 60px;
+}
+
+.redis-trace-duration {
+  width: 56px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.redis-trace-line {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  width: 32px;
+  text-align: right;
+}
+
+.redis-trace-table td pre {
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--color-surface-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  max-width: 300px;
+}
+
+.redis-trace-error {
+  color: var(--color-syntax-keyword);
+}
+
+.redis-log-card {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-surface-secondary);
+  border-left: 3px solid var(--color-border);
+}
+
+.redis-log-card:last-child {
+  margin-bottom: 0;
+}
+
+.redis-log-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.redis-log-card pre {
+  margin: 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+</style>
+
