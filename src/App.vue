@@ -1664,6 +1664,12 @@ code {
   .workspace-resize-handle--inspector {
     display: none;
   }
+
+  /* 小窗口下缩小侧边栏和检查器宽度（需要 !important 覆盖内联样式） */
+  .workspace-view {
+    --workspace-sidebar-width: 200px !important;
+    --workspace-inspector-width: 240px !important;
+  }
 }
 
 @media (max-width: 960px) {
@@ -1678,6 +1684,12 @@ code {
 
   .workspace-resize-handle {
     display: none;
+  }
+
+  /* 超小窗口下进一步缩小侧边栏和检查器 */
+  .workspace-view {
+    --workspace-sidebar-width: 140px;
+    --workspace-inspector-width: 160px;
   }
 
   .topbar {
