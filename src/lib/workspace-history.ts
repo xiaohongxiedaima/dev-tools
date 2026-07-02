@@ -27,6 +27,8 @@ export type WorkspaceHistoryToolState = {
     keysText: string;
     argvText: string;
     executionMode: "proxy" | "eval";
+    keysInputMode?: "json" | "items";
+    argvInputMode?: "json" | "items";
   };
 };
 

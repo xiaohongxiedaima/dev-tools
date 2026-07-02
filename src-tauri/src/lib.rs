@@ -35,6 +35,7 @@ struct RedisLuaTraceEntry {
     ok: bool,
     reply_preview: Option<String>,
     error: Option<String>,
+    source_line: Option<usize>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -143,6 +144,7 @@ fn run_eval_debug(request: RedisLuaDebugRequest) -> Result<RedisLuaDebugResponse
                     ok: true,
                     reply_preview: Some(result_preview),
                     error: None,
+                    source_line: None,
                 }],
                 logs: Vec::new(),
             })
@@ -160,6 +162,7 @@ fn run_eval_debug(request: RedisLuaDebugRequest) -> Result<RedisLuaDebugResponse
                 ok: false,
                 reply_preview: None,
                 error: Some(error.to_string()),
+                source_line: None,
             }],
             logs: Vec::new(),
         }),
@@ -281,6 +284,11 @@ fn execute_redis_proxy_call(
 ) -> mlua::Result<Value> {
     let values = args.into_vec();
     let (command, command_args) = split_command(values)?;
+    let source_line = lua
+        .inspect_stack(1)
+        .map(|debug| debug.curr_line())
+        .filter(|line| *line > 0)
+        .map(|line| line as usize);
     let started_at = Instant::now();
     let query_result = run_redis_command(connection, &command, &command_args);
     let duration_ms = started_at.elapsed().as_secs_f64() * 1000.0;
@@ -296,6 +304,7 @@ fn execute_redis_proxy_call(
                 true,
                 Some(reply_preview),
                 None,
+                source_line,
             )?;
             redis_value_to_lua(lua, redis_value)
         }
@@ -309,6 +318,7 @@ fn execute_redis_proxy_call(
                 false,
                 None,
                 Some(error_message.clone()),
+                source_line,
             )?;
 
             if protected {
@@ -374,6 +384,7 @@ fn push_trace_entry(
     ok: bool,
     reply_preview: Option<String>,
     error: Option<String>,
+    source_line: Option<usize>,
 ) -> mlua::Result<()> {
     let mut entries = trace_entries
         .lock()
@@ -387,6 +398,7 @@ fn push_trace_entry(
         ok,
         reply_preview,
         error,
+        source_line,
     });
     Ok(())
 }

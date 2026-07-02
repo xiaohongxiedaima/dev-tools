@@ -18,7 +18,7 @@ async function saveHistory() {
 <template>
   <div class="workspace-toolbar">
     <button
-      v-if="workspaceStore.activeToolId !== 'json-formatter'"
+      v-if="workspaceStore.activeToolId !== 'json-formatter' && workspaceStore.activeToolId !== 'redis-lua-debug-console'"
       class="ghost-button"
       type="button"
       @click="workspaceStore.swapInputAndOutputPreview()"

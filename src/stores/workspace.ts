@@ -14,7 +14,7 @@ import {
   type CommandPreset,
   type WorkspaceHistoryRecord,
 } from "../lib/database";
-import { applyJsonTransform, type JsonTransformMode } from "../lib/json-tools";
+import { applyJsonTransform } from "../lib/json-tools";
 import {
   AUTO_HISTORY_LIMIT,
   MANUAL_HISTORY_LIMIT,
@@ -26,13 +26,12 @@ import {
   type WorkspaceHistorySource,
 } from "../lib/workspace-history";
 import {
-  createDefaultRedisLuaHistoryState,
-  formatRedisLuaDebugResponse,
   parseRedisLuaArrayInput,
-  type RedisLuaDebugResponse,
-  type RedisLuaExecutionMode,
+  tryParseRedisLuaArray,
 } from "../lib/redis-lua-debug";
 import { invokeRedisLuaDebug } from "../lib/redis-lua-debug-api";
+import { useRedisLuaStore } from "./redisLua";
+import { useJsonToolStore } from "./jsonTool";
 import {
   defaultFavoriteToolIds,
   defaultToolId,
@@ -75,19 +74,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const inputSoftWrap = ref(true);
   const outputSoftWrap = ref(false);
   const liveMode = ref(true);
-  const jsonMode = ref<JsonTransformMode>("format");
-  const jsonSortKeys = ref(false);
   const base64Mode = ref<Base64TransformMode>("decode");
-  const jsonOutputMode = ref<"text" | "tree">("text");
-  const jsonTreeDepth = ref(Number.POSITIVE_INFINITY);
-  const jsonTreeCollapsedNodeLength = ref(Number.POSITIVE_INFINITY);
-  const redisLuaDefaults = createDefaultRedisLuaHistoryState();
-  const redisLuaRedisUrl = ref(redisLuaDefaults.redisUrl);
-  const redisLuaKeysText = ref(redisLuaDefaults.keysText);
-  const redisLuaArgvText = ref(redisLuaDefaults.argvText);
-  const redisLuaExecutionMode = ref<RedisLuaExecutionMode>(redisLuaDefaults.executionMode);
-  const redisLuaIsRunning = ref(false);
-  const redisLuaLastResponse = ref<RedisLuaDebugResponse | null>(null);
   const favoriteToolIds = ref<string[]>([...defaultFavoriteToolIds]);
   const recentToolHistory = ref<string[]>([...recentToolIds]);
   const favoritePresetNames = ref(["API health check", "Open SQLite shell"]);
@@ -109,10 +96,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
 
     if (activeTool.value.id === "json-formatter") {
+      const jsonStore = useJsonToolStore();
       try {
         return applyJsonTransform(inputValue.value, {
-          mode: jsonMode.value,
-          sortKeys: jsonSortKeys.value,
+          mode: jsonStore.jsonMode,
+          sortKeys: jsonStore.jsonSortKeys,
         });
       } catch (error) {
         return `JSON 解析失败：${error instanceof Error ? error.message : String(error)}`;
@@ -130,10 +118,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return inputValue.value;
   });
   const outputPreview = computed(() => (liveMode.value ? transformedOutput.value : manualOutput.value));
-  const jsonTreeRenderKey = computed(
-    () =>
-      `${activeToolId.value}:${jsonOutputMode.value}:${jsonTreeDepth.value}:${jsonTreeCollapsedNodeLength.value}:${outputPreview.value}`,
-  );
   const jsonTreeData = computed(() => {
     if (activeTool.value.id !== "json-formatter") {
       return null;
@@ -201,13 +185,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   function applyRedisLuaDefaults() {
-    const defaults = createDefaultRedisLuaHistoryState();
-    redisLuaRedisUrl.value = defaults.redisUrl;
-    redisLuaKeysText.value = defaults.keysText;
-    redisLuaArgvText.value = defaults.argvText;
-    redisLuaExecutionMode.value = defaults.executionMode;
-    redisLuaIsRunning.value = false;
-    redisLuaLastResponse.value = null;
+    useRedisLuaStore().applyRedisLuaDefaults();
   }
 
   function applyPanelViewDefaults() {
@@ -222,17 +200,18 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   function applyToolStateDefaults(tool: ToolDefinition) {
+    const jsonStore = useJsonToolStore();
     activeToolId.value = tool.id;
     inputValue.value = getToolDefaultInputValue(tool);
     manualOutput.value = tool.sampleOutput;
     applyPanelViewDefaults();
     liveMode.value = tool.id !== "redis-lua-debug-console";
-    jsonMode.value = "format";
-    jsonSortKeys.value = false;
+    jsonStore.jsonMode = "format";
+    jsonStore.jsonSortKeys = false;
     base64Mode.value = "decode";
-    jsonOutputMode.value = "text";
-    jsonTreeDepth.value = Number.POSITIVE_INFINITY;
-    jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
+    jsonStore.jsonOutputMode = "text";
+    jsonStore.jsonTreeDepth = Number.POSITIVE_INFINITY;
+    jsonStore.jsonTreeCollapsedNodeLength = Number.POSITIVE_INFINITY;
     errorMessage.value = "";
 
     if (tool.id === "redis-lua-debug-console") {
@@ -270,46 +249,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     outputSoftWrap.value = value;
   }
 
-  function setJsonMode(mode: JsonTransformMode) {
-    jsonMode.value = mode;
-  }
-
   function setBase64Mode(mode: Base64TransformMode) {
     base64Mode.value = mode;
-  }
-
-  function toggleJsonSortKeys() {
-    jsonSortKeys.value = !jsonSortKeys.value;
-  }
-
-  function setJsonOutputMode(mode: "text" | "tree") {
-    jsonOutputMode.value = mode;
-  }
-
-  function setRedisLuaRedisUrl(value: string) {
-    redisLuaRedisUrl.value = value;
-  }
-
-  function setRedisLuaKeysText(value: string) {
-    redisLuaKeysText.value = value;
-  }
-
-  function setRedisLuaArgvText(value: string) {
-    redisLuaArgvText.value = value;
-  }
-
-  function setRedisLuaExecutionMode(mode: RedisLuaExecutionMode) {
-    redisLuaExecutionMode.value = mode;
-  }
-
-  function expandJsonTree() {
-    jsonTreeDepth.value = Number.POSITIVE_INFINITY;
-    jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
-  }
-
-  function collapseJsonTree() {
-    jsonTreeDepth.value = 1;
-    jsonTreeCollapsedNodeLength.value = 2;
   }
 
   function toggleFavorite(toolId: string) {
@@ -327,27 +268,28 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   async function runCurrentTransform() {
     if (activeTool.value.id === "redis-lua-debug-console") {
-      const redisUrl = redisLuaRedisUrl.value.trim();
+      const redisLuaStore = useRedisLuaStore();
+      const redisUrl = redisLuaStore.redisLuaRedisUrl.trim();
       if (!redisUrl) {
         const message = "Redis 地址不能为空。";
         manualOutput.value = message;
-        redisLuaLastResponse.value = null;
+        redisLuaStore.redisLuaLastResponse = null;
         return;
       }
 
       let keys: string[];
       let argv: string[];
       try {
-        keys = parseRedisLuaArrayInput(redisLuaKeysText.value, "KEYS");
-        argv = parseRedisLuaArrayInput(redisLuaArgvText.value, "ARGV");
+        keys = parseRedisLuaArrayInput(redisLuaStore.redisLuaKeysText, "KEYS");
+        argv = parseRedisLuaArrayInput(redisLuaStore.redisLuaArgvText, "ARGV");
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         manualOutput.value = message;
-        redisLuaLastResponse.value = null;
+        redisLuaStore.redisLuaLastResponse = null;
         return;
       }
 
-      redisLuaIsRunning.value = true;
+      redisLuaStore.redisLuaIsRunning = true;
       errorMessage.value = "";
 
       try {
@@ -356,29 +298,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
           script: inputValue.value,
           keys,
           argv,
-          executionMode: redisLuaExecutionMode.value,
+          executionMode: redisLuaStore.redisLuaExecutionMode,
         });
 
-        redisLuaLastResponse.value = response;
-        manualOutput.value = formatRedisLuaDebugResponse(response);
+        redisLuaStore.redisLuaLastResponse = response;
+        manualOutput.value = response.success
+          ? response.resultPreview
+          : response.error ?? "执行失败";
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         errorMessage.value = message;
-        redisLuaLastResponse.value = null;
-        manualOutput.value = JSON.stringify(
-          {
-            success: false,
-            mode: redisLuaExecutionMode.value,
-            error: message,
-            result: "",
-            traceCount: 0,
-            logCount: 0,
-          },
-          null,
-          2,
-        );
+        redisLuaStore.redisLuaLastResponse = null;
+        manualOutput.value = message;
       } finally {
-        redisLuaIsRunning.value = false;
+        redisLuaStore.redisLuaIsRunning = false;
       }
 
       return;
@@ -409,13 +342,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   function createCurrentHistorySnapshot(): WorkspaceHistorySnapshot {
+    const jsonStore = useJsonToolStore();
+    const redisLuaStore = useRedisLuaStore();
     return createHistorySnapshot({
       toolId: activeToolId.value,
       inputValue: inputValue.value,
       outputValue: outputPreview.value,
       options: {
-        jsonMode: jsonMode.value,
-        jsonSortKeys: jsonSortKeys.value,
+        jsonMode: jsonStore.jsonMode,
+        jsonSortKeys: jsonStore.jsonSortKeys,
         base64Mode: base64Mode.value,
         liveMode: liveMode.value,
       },
@@ -424,18 +359,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         outputShowLineNumbers: outputShowLineNumbers.value,
         inputSoftWrap: inputSoftWrap.value,
         outputSoftWrap: outputSoftWrap.value,
-        jsonOutputMode: jsonOutputMode.value,
-        jsonTreeDepth: jsonTreeDepth.value,
-        jsonTreeCollapsedNodeLength: jsonTreeCollapsedNodeLength.value,
+        jsonOutputMode: jsonStore.jsonOutputMode,
+        jsonTreeDepth: jsonStore.jsonTreeDepth,
+        jsonTreeCollapsedNodeLength: jsonStore.jsonTreeCollapsedNodeLength,
       },
       toolState:
         activeToolId.value === "redis-lua-debug-console"
           ? {
               redisLua: {
-                redisUrl: redisLuaRedisUrl.value,
-                keysText: redisLuaKeysText.value,
-                argvText: redisLuaArgvText.value,
-                executionMode: redisLuaExecutionMode.value,
+                redisUrl: redisLuaStore.redisLuaRedisUrl,
+                keysText: redisLuaStore.redisLuaKeysText,
+                argvText: redisLuaStore.redisLuaArgvText,
+                executionMode: redisLuaStore.redisLuaExecutionMode,
+                keysInputMode: redisLuaStore.redisLuaKeysInputMode,
+                argvInputMode: redisLuaStore.redisLuaArgvInputMode,
               },
             }
           : {},
@@ -522,6 +459,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   async function restoreHistoryEntry(record: WorkspaceHistoryRecord) {
+    const jsonStore = useJsonToolStore();
+    const redisLuaStore = useRedisLuaStore();
     const snapshot = parseWorkspaceHistorySnapshot(record.snapshot_json);
     const tool = getTool(snapshot.toolId);
 
@@ -547,8 +486,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     outputSoftWrap.value = snapshot.viewState.outputSoftWrap ?? false;
 
     if (snapshot.toolId === "json-formatter") {
-      jsonMode.value = snapshot.options.jsonMode ?? (snapshot.options.jsonAction === "minify" ? "minify" : "format");
-      jsonSortKeys.value = snapshot.options.jsonSortKeys ?? snapshot.options.jsonAction === "sort";
+      jsonStore.jsonMode = snapshot.options.jsonMode ?? (snapshot.options.jsonAction === "minify" ? "minify" : "format");
+      jsonStore.jsonSortKeys = snapshot.options.jsonSortKeys ?? snapshot.options.jsonAction === "sort";
     }
 
     if (snapshot.toolId === "base64") {
@@ -556,10 +495,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
 
     if (snapshot.toolId === "redis-lua-debug-console" && snapshot.toolState.redisLua) {
-      redisLuaRedisUrl.value = snapshot.toolState.redisLua.redisUrl;
-      redisLuaKeysText.value = snapshot.toolState.redisLua.keysText;
-      redisLuaArgvText.value = snapshot.toolState.redisLua.argvText;
-      redisLuaExecutionMode.value = snapshot.toolState.redisLua.executionMode;
+      redisLuaStore.redisLuaRedisUrl = snapshot.toolState.redisLua.redisUrl;
+      redisLuaStore.redisLuaKeysText = snapshot.toolState.redisLua.keysText;
+      redisLuaStore.redisLuaArgvText = snapshot.toolState.redisLua.argvText;
+      redisLuaStore.redisLuaExecutionMode = snapshot.toolState.redisLua.executionMode;
+      redisLuaStore.redisLuaKeysInputMode = snapshot.toolState.redisLua.keysInputMode ?? "json";
+      redisLuaStore.redisLuaArgvInputMode = snapshot.toolState.redisLua.argvInputMode ?? "json";
+      redisLuaStore.redisLuaKeysItems = [...(tryParseRedisLuaArray(redisLuaStore.redisLuaKeysText) ?? [])];
+      redisLuaStore.redisLuaArgvItems = [...(tryParseRedisLuaArray(redisLuaStore.redisLuaArgvText) ?? [])];
     }
 
     rememberTool(snapshot.toolId);
@@ -619,12 +562,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     inspectorVisible,
     isInitializing,
     isLoading,
-    jsonMode,
-    jsonSortKeys,
-    jsonOutputMode,
-    jsonTreeDepth,
-    jsonTreeCollapsedNodeLength,
-    jsonTreeRenderKey,
     jsonTreeData,
     lastAutoHistorySnapshot,
     liveMode,
@@ -634,15 +571,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     outputSoftWrap,
     presets,
     recentTools,
-    redisLuaArgvText,
-    redisLuaExecutionMode,
-    redisLuaIsRunning,
-    redisLuaKeysText,
-    redisLuaLastResponse,
-    redisLuaRedisUrl,
+    searchTerm,
     deleteHistoryEntry,
     restoreHistoryEntry,
-    searchTerm,
     isInspectorSectionOpen,
     clearHistoryEntries,
     saveCurrentHistoryEntry,
@@ -652,19 +583,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     setInputShowLineNumbers,
     setInputSoftWrap,
     setInputValue,
-    setJsonMode,
-    setJsonOutputMode,
     setLiveMode,
     setOutputShowLineNumbers,
     setOutputSoftWrap,
-    setRedisLuaArgvText,
-    setRedisLuaExecutionMode,
-    setRedisLuaKeysText,
-    setRedisLuaRedisUrl,
     setSearchTerm,
-    toggleJsonSortKeys,
-    expandJsonTree,
-    collapseJsonTree,
     runCurrentTransform,
     swapInputAndOutputPreview,
     toggleInspectorSection,

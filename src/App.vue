@@ -268,6 +268,21 @@ textarea {
   padding-inline: 0;
 }
 
+/* redis 配置区收紧按钮：不影响执行调试主按钮 */
+.redis-tight-btn {
+  padding: 0.24rem 0.5rem;
+  border-radius: 8px;
+  font-size: 11px;
+  gap: 3px;
+}
+
+.redis-tight-btn.icon-only {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  padding-inline: 0;
+}
+
 .icon-button {
   width: 44px;
   height: 44px;
@@ -421,31 +436,48 @@ p {
 
 .redis-config-grid,
 .redis-debug-block,
-.redis-log-card,
-.redis-trace-card {
+.redis-log-card {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .redis-config-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .redis-config-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .redis-config-field--full {
   grid-column: 1 / -1;
 }
 
+/* Redis 地址字段：文案与控件同行 */
+.redis-address-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.redis-field-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: #c7d6ec;
+  font-size: 13px;
+}
+
+/* redis 配置各区块之间加分隔线 */
+.redis-config-field + .redis-config-field {
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
 .redis-config-field span,
 .redis-debug-block h3,
 .redis-summary-row,
-.redis-trace-top-row,
-.redis-trace-args,
 .redis-trace-error,
 .redis-log-card strong {
   color: #c7d6ec;
@@ -455,21 +487,20 @@ p {
 .redis-config-field textarea {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 14px;
+  border-radius: 10px;
   background: rgba(15, 23, 42, 0.88);
   color: #e8edf7;
-  padding: 12px 14px;
+  padding: 8px 12px;
   box-sizing: border-box;
 }
 
 .redis-config-field textarea {
   resize: vertical;
-  min-height: 96px;
+  min-height: 72px;
 }
 
 .redis-mode-row,
-.redis-summary-row,
-.redis-trace-top-row {
+.redis-summary-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -479,6 +510,202 @@ p {
 .redis-summary-row {
   margin-top: 12px;
   font-size: 13px;
+}
+
+.redis-summary-result {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Redis 地址行：下拉选择（含 url 副标题）+ 增删改按钮单行 */
+.redis-address-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* 地址操作折叠菜单 */
+.redis-address-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.redis-address-menu-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+}
+
+.redis-address-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #e8edf7;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.redis-address-menu-item:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.16);
+}
+
+.redis-address-menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.redis-address-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+}
+
+.redis-address-select-shell {
+  position: relative;
+  flex: 1 1 240px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.redis-address-select {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e8edf7;
+  padding: 0 30px 0 12px;
+  box-sizing: border-box;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+/* 自定义下拉箭头 */
+.redis-address-select-shell::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #7f97ba;
+  border-bottom: 2px solid #7f97ba;
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
+}
+
+.redis-address-select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.redis-address-select option {
+  background: #0f172a;
+  color: #e8edf7;
+}
+
+.redis-address-draft {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.redis-address-draft input {
+  flex: 1 1 180px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e8edf7;
+  padding: 7px 10px;
+  box-sizing: border-box;
+}
+
+/* 运行模式：label + 两个按钮单行 */
+.redis-mode-inline-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.redis-mode-inline-label {
+  color: #c7d6ec;
+  white-space: nowrap;
+}
+
+/* KEYS / ARGV 数组输入：标题 + 模式切换按钮单行 */
+.redis-array-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.redis-array-mode-toggle {
+  display: flex;
+  gap: 5px;
+}
+
+.redis-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.redis-item-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.redis-item-index {
+  flex: 0 0 auto;
+  min-width: 60px;
+  color: #c7d6ec;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.redis-item-row input {
+  flex: 1 1 auto;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e8edf7;
+  padding: 7px 10px;
+  box-sizing: border-box;
+}
+
+.redis-item-add {
+  align-self: flex-start;
 }
 
 .redis-debug-block {
@@ -491,26 +718,48 @@ p {
   margin: 0;
 }
 
-.redis-log-card,
-.redis-trace-card {
+.redis-log-card {
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 16px;
   background: rgba(15, 23, 42, 0.44);
 }
 
-.redis-log-card pre,
-.redis-trace-card pre {
+.redis-log-card pre {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
   color: #e8edf7;
 }
 
-.redis-trace-args,
-.redis-trace-error {
+/* redis.call 轨迹表格 */
+.redis-trace-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.redis-trace-table th,
+.redis-trace-table td {
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  text-align: left;
+  vertical-align: top;
+}
+
+.redis-trace-table th {
+  color: #c7d6ec;
+  background: rgba(15, 23, 42, 0.5);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.redis-trace-table td pre {
   margin: 0;
-  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #e8edf7;
+  font-size: 12px;
 }
 
 .redis-trace-error {
@@ -983,6 +1232,15 @@ p {
   margin-top: 6px;
 }
 
+.redis-action-bar {
+  margin-top: 0;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.44);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
 .workspace-action-bar-left,
 .workspace-action-bar-right {
   min-width: 0;
@@ -1292,8 +1550,6 @@ code {
 .redis-config-field span,
 .redis-debug-block h3,
 .redis-summary-row,
-.redis-trace-top-row,
-.redis-trace-args,
 .redis-log-card strong,
 .history-meta-row,
 .history-empty,
@@ -1323,10 +1579,35 @@ code {
 textarea,
 .redis-config-field input,
 .redis-config-field textarea,
+.redis-address-row .redis-address-select,
+.redis-address-draft input,
+.redis-item-row input,
 .editor-search-row input {
   border-color: rgba(148, 163, 184, 0.28);
   background: #fff;
   color: #0f172a;
+}
+
+.redis-address-select option {
+  background: #fff;
+  color: #0f172a;
+}
+
+.redis-address-select-shell::after {
+  border-color: #94a3b8;
+}
+
+.redis-address-menu-popover {
+  background: #fff;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.redis-address-menu-item {
+  color: #0f172a;
+}
+
+.redis-address-menu-item:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .primary-button {
@@ -1355,7 +1636,6 @@ textarea,
 .tool-card,
 .preset-card,
 .redis-log-card,
-.redis-trace-card,
 .history-card,
 .tool-nav,
 .output-preview,
@@ -1387,7 +1667,7 @@ textarea,
 }
 
 .redis-log-card pre,
-.redis-trace-card pre,
+.redis-trace-table td pre,
 .inspector-toggle,
 .workspace-header,
 .panel-header,

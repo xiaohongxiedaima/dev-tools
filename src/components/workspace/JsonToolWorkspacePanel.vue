@@ -4,6 +4,7 @@ import VueJsonPretty from "vue-json-pretty";
 import "vue-json-pretty/lib/styles.css";
 import { applyJsonTransform } from "../../lib/json-tools";
 import { useWorkspaceStore } from "../../stores/workspace";
+import { useJsonToolStore } from "../../stores/jsonTool";
 import CodeEditor from "./CodeEditor.vue";
 import WorkspaceActionRow from "./WorkspaceActionRow.vue";
 import type { WorkspaceActionItem } from "./WorkspaceActionRow.vue";
@@ -11,6 +12,7 @@ import { useWorkspacePanelSearch } from "./useWorkspacePanelSearch";
 import { useWorkspaceSplitPanels } from "./useWorkspaceSplitPanels";
 
 const workspaceStore = useWorkspaceStore();
+const jsonStore = useJsonToolStore();
 const inputEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null);
 const outputEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null);
 const copyFeedback = ref<"idle" | "success" | "error">("idle");
@@ -34,36 +36,36 @@ const jsonTextPreview = computed(() => {
 
   try {
     return applyJsonTransform(workspaceStore.inputValue, {
-      mode: workspaceStore.jsonMode,
-      sortKeys: workspaceStore.jsonSortKeys,
+      mode: jsonStore.jsonMode,
+      sortKeys: jsonStore.jsonSortKeys,
     });
   } catch (error) {
     return `JSON 解析失败：${error instanceof Error ? error.message : String(error)}`;
   }
 });
 const showJsonTree = computed(
-  () => workspaceStore.jsonOutputMode === "tree" && workspaceStore.jsonTreeData !== null,
+  () => jsonStore.jsonOutputMode === "tree" && workspaceStore.jsonTreeData !== null,
 );
 const showJsonTextOutputControls = computed(() => !showJsonTree.value);
-const jsonTreeExpanded = computed(() => workspaceStore.jsonTreeDepth !== 1);
+const jsonTreeExpanded = computed(() => jsonStore.jsonTreeDepth !== 1);
 const jsonInputPrimaryItems = computed((): WorkspaceActionItem[] => [
   {
     key: "format",
     label: "格式化",
-    active: workspaceStore.jsonMode === "format",
+    active: jsonStore.jsonMode === "format",
     onClick: () => void applyJsonMode("format"),
   },
   {
     key: "minify",
     label: "压缩",
-    active: workspaceStore.jsonMode === "minify",
+    active: jsonStore.jsonMode === "minify",
     onClick: () => void applyJsonMode("minify"),
   },
   {
     key: "sort",
     label: "排序",
-    active: workspaceStore.jsonSortKeys,
-    pressed: workspaceStore.jsonSortKeys,
+    active: jsonStore.jsonSortKeys,
+    pressed: jsonStore.jsonSortKeys,
     onClick: () => void applyJsonSortToggle(),
   },
   {
@@ -114,17 +116,17 @@ const jsonOutputPrimaryItems = computed((): WorkspaceActionItem[] => [
   {
     key: "text-mode",
     label: "文本视图",
-    active: workspaceStore.jsonOutputMode === "text",
+    active: jsonStore.jsonOutputMode === "text",
     onClick: () => {
-      workspaceStore.jsonOutputMode = "text";
+      jsonStore.jsonOutputMode = "text";
     },
   },
   {
     key: "tree-mode",
     label: "树状视图",
-    active: workspaceStore.jsonOutputMode === "tree",
+    active: jsonStore.jsonOutputMode === "tree",
     onClick: () => {
-      workspaceStore.jsonOutputMode = "tree";
+      jsonStore.jsonOutputMode = "tree";
     },
   },
 ]);
@@ -161,10 +163,10 @@ const jsonOutputSecondaryItems = computed((): WorkspaceActionItem[] => [
     visible: showJsonTree.value,
     onClick: () => {
       if (jsonTreeExpanded.value) {
-        workspaceStore.collapseJsonTree();
+        jsonStore.collapseJsonTree();
         return;
       }
-      workspaceStore.expandJsonTree();
+      jsonStore.expandJsonTree();
     },
   },
   {
@@ -178,8 +180,8 @@ const { workspacePanelsRef, inputPanelStyle, outputPanelStyle, nudgePanelResize,
   useWorkspaceSplitPanels();
 
 async function prepareJsonTextOutput() {
-  if (workspaceStore.jsonOutputMode === "tree") {
-    workspaceStore.jsonOutputMode = "text";
+  if (jsonStore.jsonOutputMode === "tree") {
+    jsonStore.jsonOutputMode = "text";
     await nextTick();
   }
 }
@@ -206,12 +208,12 @@ const {
 
 async function applyJsonMode(mode: "format" | "minify") {
   await prepareJsonTextOutput();
-  workspaceStore.jsonMode = mode;
+  jsonStore.jsonMode = mode;
 }
 
 async function applyJsonSortToggle() {
   await prepareJsonTextOutput();
-  workspaceStore.jsonSortKeys = !workspaceStore.jsonSortKeys;
+  jsonStore.jsonSortKeys = !jsonStore.jsonSortKeys;
 }
 
 async function copyOutput() {
@@ -250,7 +252,6 @@ async function runActiveTool() {
             </div>
           </div>
         </div>
-        <div class="panel-header-tools" />
       </div>
 
       <div ref="inputContentRef" class="editor-content-shell">
@@ -304,7 +305,6 @@ async function runActiveTool() {
             </div>
           </div>
         </div>
-        <div class="panel-header-tools" />
       </div>
 
       <div ref="outputContentRef" class="output-preview">
@@ -325,10 +325,10 @@ async function runActiveTool() {
         </div>
         <VueJsonPretty
           v-if="showJsonTree"
-          :key="workspaceStore.jsonTreeRenderKey"
+          :key="jsonStore.jsonTreeRenderKey"
           :data="workspaceStore.jsonTreeData"
-          :deep="workspaceStore.jsonTreeDepth"
-          :collapsed-node-length="workspaceStore.jsonTreeCollapsedNodeLength"
+          :deep="jsonStore.jsonTreeDepth"
+          :collapsed-node-length="jsonStore.jsonTreeCollapsedNodeLength"
           :collapsed-on-click-brackets="true"
           :show-icon="true"
           :show-length="true"
@@ -338,7 +338,7 @@ async function runActiveTool() {
         />
         <CodeEditor
           v-else
-          :key="`${workspaceStore.activeToolId}:${workspaceStore.jsonOutputMode}:${workspaceStore.jsonMode}:${workspaceStore.jsonSortKeys}:${jsonTextPreview}`"
+          :key="`${workspaceStore.activeToolId}:${jsonStore.jsonOutputMode}:${jsonStore.jsonMode}:${jsonStore.jsonSortKeys}:${jsonTextPreview}`"
           ref="outputEditorRef"
           :model-value="jsonTextPreview"
           :language="'json'"

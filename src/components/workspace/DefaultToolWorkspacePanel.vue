@@ -171,7 +171,6 @@ async function runActiveTool() {
             </div>
           </div>
         </div>
-        <div class="panel-header-tools" />
       </div>
 
       <div ref="inputContentRef" class="editor-content-shell">
@@ -223,7 +222,6 @@ async function runActiveTool() {
             </div>
           </div>
         </div>
-        <div class="panel-header-tools" />
       </div>
 
       <div ref="outputContentRef" class="output-preview">
