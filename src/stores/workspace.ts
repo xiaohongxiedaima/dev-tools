@@ -66,9 +66,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const searchTerm = ref("");
   const activeToolId = ref(defaultToolId);
   const inputValue = ref(getToolDefaultInputValue(getTool(defaultToolId) ?? tools[0]));
-  const inputShowLineNumbers = ref(false);
-  const outputShowLineNumbers = ref(false);
-  const inputSoftWrap = ref(true);
+  const inputShowLineNumbers = ref(true);
+  const outputShowLineNumbers = ref(true);
+  const inputSoftWrap = ref(false);
   const outputSoftWrap = ref(false);
   const inputFontSize = ref(14);
   const outputFontSize = ref(14);
@@ -190,9 +190,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   function applyPanelViewDefaults() {
-    inputShowLineNumbers.value = false;
-    outputShowLineNumbers.value = false;
-    inputSoftWrap.value = true;
+    inputShowLineNumbers.value = true;
+    outputShowLineNumbers.value = true;
+    inputSoftWrap.value = false;
     outputSoftWrap.value = false;
   }
 
@@ -514,9 +514,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
             ? snapshot.outputValue
           : tool.sampleOutput;
     liveMode.value = snapshot.options.liveMode ?? tool.id !== "redis-lua-debug-console";
-    inputShowLineNumbers.value = snapshot.viewState.inputShowLineNumbers ?? false;
-    outputShowLineNumbers.value = snapshot.viewState.outputShowLineNumbers ?? false;
-    inputSoftWrap.value = snapshot.viewState.inputSoftWrap ?? true;
+    inputShowLineNumbers.value = snapshot.viewState.inputShowLineNumbers ?? true;
+    outputShowLineNumbers.value = snapshot.viewState.outputShowLineNumbers ?? true;
+    inputSoftWrap.value = snapshot.viewState.inputSoftWrap ?? false;
     outputSoftWrap.value = snapshot.viewState.outputSoftWrap ?? false;
 
     if (snapshot.toolId === "json-formatter") {

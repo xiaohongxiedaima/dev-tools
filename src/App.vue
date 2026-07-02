@@ -807,6 +807,12 @@ p {
   border-top: 1px solid var(--dt-divider);
 }
 
+.redis-debug-block:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .redis-debug-block-header h3 {
   margin: 0;
 }

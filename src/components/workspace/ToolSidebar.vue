@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Star, ChevronDown } from "lucide-vue-next";
+import { Star, ChevronDown, Home } from "lucide-vue-next";
 import { useWorkspaceStore } from "../../stores/workspace";
 
 const router = useRouter();
@@ -45,6 +45,14 @@ onMounted(scrollActiveToolIntoView);
   <aside class="sidebar shell-card">
     <div class="sidebar-header">
       <h2>工具导航</h2>
+      <button
+        class="ghost-button small icon-only"
+        type="button"
+        title="回到主页"
+        @click="router.push({ name: 'home' })"
+      >
+        <Home :size="16" />
+      </button>
     </div>
 
     <div ref="sidebarScroll" class="sidebar-scroll">

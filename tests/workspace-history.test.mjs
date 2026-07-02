@@ -367,9 +367,9 @@ test("workspace store declares separate manual and auto history state", () => {
   assert.match(workspaceStore, /const autoHistory = ref/);
   assert.match(workspaceStore, /const lastAutoHistorySnapshot = ref/);
   assert.match(workspaceStore, /const base64Mode = ref<Base64TransformMode>\("decode"\)/);
-  assert.match(workspaceStore, /const inputShowLineNumbers = ref\(false\)/);
-  assert.match(workspaceStore, /const outputShowLineNumbers = ref\(false\)/);
-  assert.match(workspaceStore, /const inputSoftWrap = ref\(true\)/);
+  assert.match(workspaceStore, /const inputShowLineNumbers = ref\(true\)/);
+  assert.match(workspaceStore, /const outputShowLineNumbers = ref\(true\)/);
+  assert.match(workspaceStore, /const inputSoftWrap = ref\(false\)/);
   assert.match(workspaceStore, /const outputSoftWrap = ref\(false\)/);
 });
 
@@ -415,9 +415,9 @@ test("workspace store restores snapshot fields back into live tool state", () =>
     /manualOutput\.value =[\s\S]*snapshot\.toolId === "redis-lua-debug-console"[\s\S]*snapshot\.outputValue[\s\S]*snapshot\.toolId === "json-formatter"[\s\S]*snapshot\.outputValue[\s\S]*snapshot\.toolId === "base64"[\s\S]*snapshot\.outputValue[\s\S]*tool\.sampleOutput/,
   );
   assert.match(workspaceStore, /liveMode\.value = snapshot\.options\.liveMode \?\? tool\.id !== "redis-lua-debug-console"/);
-  assert.match(workspaceStore, /inputShowLineNumbers\.value = snapshot\.viewState\.inputShowLineNumbers \?\? false/);
-  assert.match(workspaceStore, /outputShowLineNumbers\.value = snapshot\.viewState\.outputShowLineNumbers \?\? false/);
-  assert.match(workspaceStore, /inputSoftWrap\.value = snapshot\.viewState\.inputSoftWrap \?\? true/);
+  assert.match(workspaceStore, /inputShowLineNumbers\.value = snapshot\.viewState\.inputShowLineNumbers \?\? true/);
+  assert.match(workspaceStore, /outputShowLineNumbers\.value = snapshot\.viewState\.outputShowLineNumbers \?\? true/);
+  assert.match(workspaceStore, /inputSoftWrap\.value = snapshot\.viewState\.inputSoftWrap \?\? false/);
   assert.match(workspaceStore, /outputSoftWrap\.value = snapshot\.viewState\.outputSoftWrap \?\? false/);
   assert.match(workspaceStore, /jsonStore\.jsonMode = snapshot\.options\.jsonMode \?\? \(snapshot\.options\.jsonAction === "minify" \? "minify" : "format"\)/);
   assert.match(workspaceStore, /jsonStore\.jsonSortKeys = snapshot\.options\.jsonSortKeys \?\? snapshot\.options\.jsonAction === "sort"/);

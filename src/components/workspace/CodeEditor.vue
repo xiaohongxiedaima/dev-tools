@@ -26,8 +26,8 @@ const props = withDefaults(
     readonly: false,
     language: "text",
     placeholder: "",
-    showLineNumbers: false,
-    wrap: true,
+    showLineNumbers: true,
+    wrap: false,
     fontSize: 14,
   },
 );

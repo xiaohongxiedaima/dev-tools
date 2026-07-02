@@ -301,9 +301,9 @@ test('workspace store exposes layout state derived from workspaceLayout', () => 
 
 test('workspace store tracks tree expansion controls', () => {
   const jsonStore = readFileSync(new URL('../src/stores/jsonTool.ts', import.meta.url), 'utf8');
-  assert.match(workspaceStore, /const inputShowLineNumbers = ref\(false\)/);
-  assert.match(workspaceStore, /const outputShowLineNumbers = ref\(false\)/);
-  assert.match(workspaceStore, /const inputSoftWrap = ref\(true\)/);
+  assert.match(workspaceStore, /const inputShowLineNumbers = ref\(true\)/);
+  assert.match(workspaceStore, /const outputShowLineNumbers = ref\(true\)/);
+  assert.match(workspaceStore, /const inputSoftWrap = ref\(false\)/);
   assert.match(workspaceStore, /const outputSoftWrap = ref\(false\)/);
   assert.match(jsonStore, /const jsonTreeDepth = ref\(Number\.POSITIVE_INFINITY\);/);
   assert.match(jsonStore, /const jsonTreeCollapsedNodeLength = ref\(Number\.POSITIVE_INFINITY\);/);
@@ -409,7 +409,7 @@ test('code editor exposes search locate methods', () => {
 test('code editor supports hiding line numbers by default', () => {
   assert.match(codeEditor, /showLineNumbers\?: boolean/);
   assert.match(codeEditor, /wrap\?: boolean/);
-  assert.match(codeEditor, /wrap: true/);
+  assert.match(codeEditor, /wrap: false/);
   assert.match(codeEditor, /:wrap="props\.wrap"/);
   assert.match(codeEditor, /code-editor-shell--hide-line-numbers/);
 });

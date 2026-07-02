@@ -115,7 +115,7 @@ fn strip_chunk_prefix(raw: &str) -> String {
         ""
     };
 
-    format!("Lua 脚本第 {} 行: {}", line_number.trim(), rest.trim())
+    format!("Lua 脚本第 {} 行号: {}", line_number.trim(), rest.trim())
 }
 
 fn run_proxy_debug(request: RedisLuaDebugRequest) -> Result<RedisLuaDebugResponse, String> {

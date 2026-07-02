@@ -269,6 +269,56 @@ async function runActiveTool() {
 <template>
   <section ref="workspacePanelsRef" class="workspace-panels">
     <article class="editor-panel shell-card" :style="inputPanelStyle">
+      <div class="workspace-action-bar redis-action-bar">
+        <div class="workspace-action-bar-left">
+          <WorkspaceActionRow :items="inputPrimaryActionItems" />
+        </div>
+        <div class="workspace-action-bar-right">
+          <WorkspaceActionRow :items="inputSecondaryActionItems" grouped />
+        </div>
+      </div>
+
+      <div ref="inputContentRef" class="editor-content-shell">
+        <div v-if="inputSearchVisible" class="editor-search-overlay">
+          <div class="editor-search-row editor-search-row--overlay">
+            <input
+              id="input-search-query"
+              ref="inputSearchInputRef"
+              v-model="inputSearchQuery"
+              type="text"
+              placeholder="搜索左侧内容"
+              @keydown.enter.prevent="searchInputNext"
+              @keydown.escape.prevent="hideSearch('input')"
+            />
+            <button class="ghost-button small" type="button" @click="searchInputPrevious">上一个</button>
+            <button class="ghost-button small" type="button" @click="searchInputNext">下一个</button>
+          </div>
+        </div>
+        <CodeEditor
+          ref="inputEditorRef"
+          :model-value="workspaceStore.inputValue"
+          :language="'lua'"
+          :placeholder="workspaceStore.activeTool.placeholder"
+          :show-line-numbers="workspaceStore.inputShowLineNumbers"
+          :wrap="workspaceStore.inputSoftWrap"
+          :font-size="workspaceStore.inputFontSize"
+          @update:model-value="workspaceStore.setInputValue"
+          @blur="workspaceStore.saveAutoHistoryOnInputBlur"
+        />
+      </div>
+    </article>
+
+    <div
+      class="workspace-panel-resize-handle"
+      role="separator"
+      aria-label="调整左右面板宽度"
+      tabindex="0"
+      @pointerdown="startPanelResize"
+      @keydown.left.prevent="nudgePanelResize(-5)"
+      @keydown.right.prevent="nudgePanelResize(5)"
+    />
+
+    <article class="editor-panel shell-card" :style="outputPanelStyle">
       <div class="panel-header compact">
         <div class="panel-header-copy">
           <div class="redis-config-grid">
@@ -433,63 +483,13 @@ async function runActiveTool() {
         </div>
       </div>
 
-      <div class="workspace-action-bar redis-action-bar">
-        <div class="workspace-action-bar-left">
-          <WorkspaceActionRow :items="inputPrimaryActionItems" />
-        </div>
-        <div class="workspace-action-bar-right">
-          <WorkspaceActionRow :items="inputSecondaryActionItems" grouped />
-        </div>
-      </div>
-
-      <div ref="inputContentRef" class="editor-content-shell">
-        <div v-if="inputSearchVisible" class="editor-search-overlay">
-          <div class="editor-search-row editor-search-row--overlay">
-            <input
-              id="input-search-query"
-              ref="inputSearchInputRef"
-              v-model="inputSearchQuery"
-              type="text"
-              placeholder="搜索左侧内容"
-              @keydown.enter.prevent="searchInputNext"
-              @keydown.escape.prevent="hideSearch('input')"
-            />
-            <button class="ghost-button small" type="button" @click="searchInputPrevious">上一个</button>
-            <button class="ghost-button small" type="button" @click="searchInputNext">下一个</button>
-          </div>
-        </div>
-        <CodeEditor
-          ref="inputEditorRef"
-          :model-value="workspaceStore.inputValue"
-          :language="'lua'"
-          :placeholder="workspaceStore.activeTool.placeholder"
-          :show-line-numbers="workspaceStore.inputShowLineNumbers"
-          :wrap="workspaceStore.inputSoftWrap"
-          :font-size="workspaceStore.inputFontSize"
-          @update:model-value="workspaceStore.setInputValue"
-          @blur="workspaceStore.saveAutoHistoryOnInputBlur"
-        />
-      </div>
-    </article>
-
-    <div
-      class="workspace-panel-resize-handle"
-      role="separator"
-      aria-label="调整左右面板宽度"
-      tabindex="0"
-      @pointerdown="startPanelResize"
-      @keydown.left.prevent="nudgePanelResize(-5)"
-      @keydown.right.prevent="nudgePanelResize(5)"
-    />
-
-    <article class="editor-panel shell-card" :style="outputPanelStyle">
       <section class="redis-debug-block redis-status-block">
         <div class="redis-execution-card" :class="`redis-execution-card--${redisLuaStatusKind}`">
           <div class="redis-execution-card-header">
             <span class="redis-status-badge" :class="`redis-status-badge--${redisLuaStatusKind}`">
               <span v-if="redisLuaStatusKind === 'running'" class="redis-status-spinner" />
             </span>
-            <span class="redis-execution-mode">{{ redisLuaModeLabel }}</span>
+            <span v-if="redisLuaStore.redisLuaLastResponse" class="redis-execution-mode">{{ redisLuaModeLabel }}</span>
             <div v-if="redisLuaStore.redisLuaLastResponse" class="redis-execution-stats">
               <span v-if="redisLuaTotalDuration !== null" class="redis-stat">
                 <span class="redis-stat-label">总耗时</span>
@@ -532,12 +532,12 @@ async function runActiveTool() {
           <thead>
             <tr>
               <th>#</th>
-              <th class="redis-trace-line">行</th>
+              <th class="redis-trace-line">行号</th>
               <th>命令</th>
               <th>key</th>
               <th>参数</th>
               <th>结果</th>
-              <th class="redis-trace-duration">ms</th>
+              <th class="redis-trace-duration">耗时(ms)</th>
             </tr>
           </thead>
           <tbody>
@@ -573,7 +573,6 @@ async function runActiveTool() {
 
 <style scoped>
 .redis-debug-block {
-  padding: 16px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -692,11 +691,9 @@ async function runActiveTool() {
 .redis-execution-empty {
   margin-top: 10px;
   padding: 16px;
-  text-align: center;
   font-size: 13px;
   color: var(--color-text-secondary);
-  background: var(--color-surface-secondary);
-  border-radius: 8px;
+  text-align: center;
 }
 
 .redis-execution-error {
@@ -776,9 +773,10 @@ async function runActiveTool() {
 .redis-trace-table th {
   font-weight: 600;
   color: var(--color-text-secondary);
-  background: var(--color-surface-secondary);
+  background: var(--dt-surface-strong, var(--color-surface-secondary));
   position: sticky;
   top: 0;
+  z-index: 1;
 }
 
 .redis-trace-table .col-index {
@@ -786,7 +784,7 @@ async function runActiveTool() {
 }
 
 .redis-trace-duration {
-  width: 56px;
+  width: 80px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -796,7 +794,7 @@ async function runActiveTool() {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-text-secondary);
-  width: 32px;
+  width: 48px;
   text-align: right;
 }
 
