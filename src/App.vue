@@ -963,6 +963,7 @@ p {
   min-height: 0;
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .inspector-top-row {
@@ -1660,19 +1661,18 @@ code {
   color: var(--dt-danger-soft);
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1100px) {
   .workspace-resize-handle--inspector {
     display: none;
   }
 
-  /* 小窗口下缩小侧边栏和检查器宽度（需要 !important 覆盖内联样式） */
   .workspace-view {
     --workspace-sidebar-width: 200px !important;
     --workspace-inspector-width: 240px !important;
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 900px) {
   .topbar,
   .hero,
   .home-grid,
@@ -1686,7 +1686,6 @@ code {
     display: none;
   }
 
-  /* 超小窗口下进一步缩小侧边栏和检查器 */
   .workspace-view {
     --workspace-sidebar-width: 140px;
     --workspace-inspector-width: 160px;
