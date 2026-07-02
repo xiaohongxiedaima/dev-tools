@@ -85,7 +85,29 @@ export function parseRedisLuaArrayInput(input: string, _fieldLabel: string): str
   if (!trimmed) {
     return [];
   }
+
+  // 尝试将整个输入解析为 JSON（对象或数组）
+  const jsonResult = tryParseJson(trimmed);
+  if (jsonResult !== null) {
+    return [jsonResult];
+  }
+
   return splitArgTokens(trimmed);
+}
+
+/**
+ * 尝试将输入解析为 JSON 对象或数组，成功则返回其字符串形式，失败返回 null。
+ */
+function tryParseJson(input: string): string | null {
+  if ((input.startsWith("{") && input.endsWith("}")) || (input.startsWith("[") && input.endsWith("]"))) {
+    try {
+      JSON.parse(input);
+      return input; // 是合法 JSON，原样返回
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /**

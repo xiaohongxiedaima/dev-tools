@@ -58,6 +58,10 @@ test("redis lua helper exposes stable defaults", () => {
   });
 });
 
+test("redis lua helper parses ARGV JSON strings", () => {
+  assert.deepEqual(parseRedisLuaArrayInput('{"hello": "world", "b": "b"}', "ARGV"), ['{"hello": "world", "b": "b"}']);
+});
+
 test("redis lua workspace panel exposes redis config and trace sections", () => {
   assert.match(toolWorkspacePanel, /import RedisLuaToolWorkspacePanel from "\.\/RedisLuaToolWorkspacePanel\.vue"/);
   assert.match(toolWorkspacePanel, /case "redis-lua-debug-console":/);
