@@ -1626,6 +1626,7 @@ code {
 .history-meta-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: 8px 12px;
   color: var(--dt-text-muted);
