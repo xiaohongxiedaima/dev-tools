@@ -98,7 +98,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: Dev Tools Desktop ${{ github.ref_name }}
+          releaseName: Dev Tools ${{ github.ref_name }}
           releaseBody: |
             Automated desktop release for ${{ github.ref_name }}.
           releaseDraft: false

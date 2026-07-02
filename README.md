@@ -1,4 +1,4 @@
-# Dev Tools Desktop
+# Dev Tools
 
 Desktop shell for daily backend development workflows, built with:
 
