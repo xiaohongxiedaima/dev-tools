@@ -1230,7 +1230,7 @@ p {
 }
 
 .workspace-header.compact {
-  padding: 16px 18px;
+  padding: 6px 22px;
 }
 
 .workspace-header.compact .eyebrow {
@@ -1609,6 +1609,7 @@ code {
 .history-card strong {
   display: block;
   line-height: 1.4;
+  font-weight: normal;
 }
 
 .history-header-row {
@@ -1632,11 +1633,21 @@ code {
 }
 
 .history-inline-action {
-  padding: 0;
+  padding: 4px;
   border: 0;
   background: transparent;
-  color: var(--dt-danger-soft);
+  color: var(--dt-danger);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.history-inline-action:hover {
+  background: var(--dt-danger-soft);
+  color: var(--dt-surface-solid);
 }
 
 .history-empty {

@@ -83,7 +83,9 @@ function openTool(toolId: string) {
               <strong>{{ entry.title || "未命名历史记录" }}</strong>
               <div class="history-meta-row">
                 <time>{{ formatHistoryTime(entry.created_at) }}</time>
-                <button class="history-inline-action" type="button" @click.stop="deleteHistoryEntry(entry.id)">删除</button>
+                <button class="history-inline-action" type="button" @click.stop="deleteHistoryEntry(entry.id)">
+                  <Trash2 :size="14" />
+                </button>
               </div>
             </button>
           </article>
@@ -116,7 +118,9 @@ function openTool(toolId: string) {
               <strong>{{ entry.title || "未命名历史记录" }}</strong>
               <div class="history-meta-row">
                 <time>{{ formatHistoryTime(entry.created_at) }}</time>
-                <button class="history-inline-action" type="button" @click.stop="deleteHistoryEntry(entry.id)">删除</button>
+                <button class="history-inline-action" type="button" @click.stop="deleteHistoryEntry(entry.id)">
+                  <Trash2 :size="14" />
+                </button>
               </div>
             </button>
           </article>
