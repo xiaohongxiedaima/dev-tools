@@ -1000,7 +1000,8 @@ p {
 }
 
 .sidebar-scroll {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   flex: 1;
   overflow-y: auto;
@@ -1648,10 +1649,6 @@ code {
 }
 
 @media (max-width: 1280px) {
-  .workspace-view {
-    grid-template-columns: var(--workspace-sidebar-width, 260px) var(--workspace-divider-size) minmax(0, 1fr);
-  }
-
   .workspace-resize-handle--inspector {
     display: none;
   }
@@ -1666,7 +1663,71 @@ code {
   .topbar,
   .hero,
   .home-grid,
-  .workspace-view,
+  .workspace-header,
+  .workspace-panels {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-resize-handle {
+    display: none;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .topbar-main,
+  .topbar-side {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-side {
+    justify-content: flex-start;
+  }
+
+  .topbar-context {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .hero-status {
+    max-width: none;
+  }
+
+  .tool-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-header-tools {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .workspace-panel-resize-handle {
+    display: none;
+  }
+
+  .workspace-panels > .editor-panel {
+    flex-basis: auto !important;
+  }
+
+  .editor-search-overlay {
+    left: 12px;
+  }
+
+  .editor-search-row--overlay {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 960px) {
+  .topbar,
+  .hero,
+  .home-grid,
   .workspace-header,
   .workspace-panels {
     display: flex;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { ChevronDown, ChevronUp, Trash2, X } from "lucide-vue-next";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-vue-next";
 import { useWorkspaceStore } from "../../stores/workspace";
 
 const router = useRouter();
@@ -59,18 +59,6 @@ function openTool(toolId: string) {
 
 <template>
   <aside class="inspector shell-card">
-    <div class="inspector-top-row">
-      <h2>历史中心</h2>
-      <button
-        class="ghost-button small icon-only"
-        type="button"
-        aria-label="隐藏右侧历史中心"
-        title="隐藏右侧历史中心"
-        @click="workspaceStore.toggleInspectorVisibility()"
-      >
-        <X :size="16" />
-      </button>
-    </div>
     <section class="inspector-section">
       <div class="history-header-row">
         <button class="inspector-toggle" type="button" @click="workspaceStore.toggleInspectorSection('manual-history')">
