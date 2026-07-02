@@ -640,6 +640,44 @@ p {
   overflow-y: auto;
 }
 
+/* 滚动条默认不显示，hover 时才淡入显示，左右面板行为一致 */
+.sidebar-scroll,
+.inspector {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+.sidebar-scroll:hover,
+.inspector:hover {
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar,
+.inspector::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track,
+.inspector::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb,
+.inspector::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-scroll:hover::-webkit-scrollbar-thumb,
+.inspector:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.5);
+}
+
 .workspace-resize-handle {
   position: relative;
   align-self: stretch;
