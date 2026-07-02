@@ -64,17 +64,6 @@ export function createDefaultRedisLuaHistoryState(): RedisLuaHistoryState {
   };
 }
 
-export const DEFAULT_REDIS_LUA_SCRIPT = `local current = redis.call("GET", KEYS[1])
-
-if not current then
-  redis.call("SET", KEYS[1], ARGV[1])
-end
-
-return {
-  before = current,
-  after = redis.call("GET", KEYS[1])
-}`;
-
 /**
  * 解析 KEYS/ARGV 输入文本为字符串数组。
  * 普通参数以空格分隔；用双引号或单引号包裹的段（含空格）作为一个整体。

@@ -966,23 +966,6 @@ p {
   overflow-x: hidden;
 }
 
-.inspector-top-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding-bottom: 8px;
-  background: var(--dt-surface-strong);
-  backdrop-filter: blur(18px);
-}
-
-.inspector-top-row h2 {
-  margin: 0;
-}
-
 .sidebar-header {
   display: flex;
   align-items: center;

@@ -779,10 +779,6 @@ async function runActiveTool() {
   z-index: 1;
 }
 
-.redis-trace-table .col-index {
-  width: 60px;
-}
-
 .redis-trace-duration {
   width: 80px;
   text-align: right;

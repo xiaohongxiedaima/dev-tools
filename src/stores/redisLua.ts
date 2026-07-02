@@ -30,10 +30,6 @@ export const useRedisLuaStore = defineStore("redisLua", () => {
     redisLuaLastResponse.value = null;
   }
 
-  function setRedisLuaRedisUrl(value: string) {
-    redisLuaRedisUrl.value = value;
-  }
-
   function setRedisLuaKeysText(value: string) {
     redisLuaKeysText.value = value;
   }
@@ -90,7 +86,6 @@ export const useRedisLuaStore = defineStore("redisLua", () => {
     redisLuaIsRunning,
     redisLuaLastResponse,
     applyRedisLuaDefaults,
-    setRedisLuaRedisUrl,
     setRedisLuaKeysText,
     setRedisLuaArgvText,
     setRedisLuaExecutionMode,

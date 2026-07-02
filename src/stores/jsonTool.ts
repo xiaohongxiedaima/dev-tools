@@ -14,18 +14,6 @@ export const useJsonToolStore = defineStore("jsonTool", () => {
       `jsonTool:${jsonOutputMode.value}:${jsonTreeDepth.value}:${jsonTreeCollapsedNodeLength.value}`,
   );
 
-  function setJsonMode(mode: JsonTransformMode) {
-    jsonMode.value = mode;
-  }
-
-  function toggleJsonSortKeys() {
-    jsonSortKeys.value = !jsonSortKeys.value;
-  }
-
-  function setJsonOutputMode(mode: "text" | "tree") {
-    jsonOutputMode.value = mode;
-  }
-
   function expandJsonTree() {
     jsonTreeDepth.value = Number.POSITIVE_INFINITY;
     jsonTreeCollapsedNodeLength.value = Number.POSITIVE_INFINITY;
@@ -43,9 +31,6 @@ export const useJsonToolStore = defineStore("jsonTool", () => {
     jsonTreeDepth,
     jsonTreeCollapsedNodeLength,
     jsonTreeRenderKey,
-    setJsonMode,
-    toggleJsonSortKeys,
-    setJsonOutputMode,
     expandJsonTree,
     collapseJsonTree,
   };
