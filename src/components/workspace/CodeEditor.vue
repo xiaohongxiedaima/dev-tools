@@ -4,10 +4,13 @@ import CodeMirror from "vue-codemirror6";
 import { json } from "@codemirror/lang-json";
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { lua } from "@codemirror/legacy-modes/mode/lua";
-import { githubLight } from "@uiw/codemirror-theme-github";
+import { githubLight, githubDark } from "@uiw/codemirror-theme-github";
 import type { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { findEditorMatch } from "../../lib/editor-search";
+import { useThemeStore } from "../../stores/theme";
+
+const themeStore = useThemeStore();
 
 const props = withDefaults(
   defineProps<{
@@ -43,7 +46,7 @@ const lang = computed(() => {
 
   return undefined;
 });
-const extensions = computed(() => [githubLight]);
+const extensions = computed(() => [themeStore.isDark ? githubDark : githubLight]);
 const editorView = shallowRef<EditorView | null>(null);
 
 function updateValue(value?: string | Text) {
@@ -136,7 +139,7 @@ defineExpose({
       :model-value="props.modelValue"
       basic
       :wrap="props.wrap"
-      :dark="false"
+      :dark="themeStore.isDark"
       :readonly="props.readonly"
       :lang="lang"
       :extensions="extensions"

@@ -5,6 +5,7 @@ import "vue-json-pretty/lib/styles.css";
 import { applyJsonTransform } from "../../lib/json-tools";
 import { useWorkspaceStore } from "../../stores/workspace";
 import { useJsonToolStore } from "../../stores/jsonTool";
+import { useThemeStore } from "../../stores/theme";
 import CodeEditor from "./CodeEditor.vue";
 import WorkspaceActionRow from "./WorkspaceActionRow.vue";
 import type { WorkspaceActionItem } from "./WorkspaceActionRow.vue";
@@ -13,6 +14,7 @@ import { useWorkspaceSplitPanels } from "./useWorkspaceSplitPanels";
 
 const workspaceStore = useWorkspaceStore();
 const jsonStore = useJsonToolStore();
+const themeStore = useThemeStore();
 const inputEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null);
 const outputEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null);
 const copyFeedback = ref<"idle" | "success" | "error">("idle");
@@ -333,7 +335,7 @@ async function runActiveTool() {
           :show-icon="true"
           :show-length="true"
           :show-line="false"
-          theme="light"
+          :theme="themeStore.isDark ? 'dark' : 'light'"
           class="json-tree-view"
         />
         <CodeEditor

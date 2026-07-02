@@ -72,6 +72,52 @@ fn run_redis_lua_debug(request: RedisLuaDebugRequest) -> Result<RedisLuaDebugRes
     }
 }
 
+/// 将 mlua 错误格式化为用户可读的信息，去掉内部实现路径。
+fn format_lua_error(error: &mlua::Error) -> String {
+    let raw = error.to_string();
+
+    // mlua RuntimeError 的字符串格式通常为：
+    //   [string "src/lib.rs:96:30"]:164: attempt to concatenate local 'KEY_PREFIX' (a nil value)
+    // 其中 "src/lib.rs:96:30" 是 Rust 代码内部的 chunk 标识，对用户毫无意义。
+    // 我们将其替换为 "Lua 脚本"，并保留行号和原始消息。
+    let cleaned = strip_chunk_prefix(&raw);
+
+    // 去掉可能残留的 "runtime error: " 前缀
+    cleaned
+        .strip_prefix("runtime error: ")
+        .unwrap_or(&cleaned)
+        .to_string()
+}
+
+/// 把 `[string "...."]:NN:` 替换为 `Lua 脚本第 NN 行:`
+fn strip_chunk_prefix(raw: &str) -> String {
+    let start_marker = "[string \"";
+    let start = match raw.find(start_marker) {
+        Some(pos) => pos,
+        None => return raw.to_string(),
+    };
+
+    // 找到 `"]:` 的位置
+    let chunk_end = match raw[start..].find("\"]:") {
+        Some(pos) => start + pos + 2, // 跳过 "]:"
+        None => return raw.to_string(),
+    };
+
+    // 在 chunk_end 之后提取行号（到下一个 `:` 之前）
+    let after_chunk = &raw[chunk_end..];
+    let line_end = after_chunk.find(':').unwrap_or(after_chunk.len());
+    let line_number = &after_chunk[..line_end];
+
+    // 剩余部分是错误消息
+    let rest = if line_end < after_chunk.len() {
+        &after_chunk[line_end + 1..]
+    } else {
+        ""
+    };
+
+    format!("Lua 脚本第 {} 行: {}", line_number.trim(), rest.trim())
+}
+
 fn run_proxy_debug(request: RedisLuaDebugRequest) -> Result<RedisLuaDebugResponse, String> {
     let client = Client::open(request.redis_url.as_str()).map_err(|error| error.to_string())?;
     let connection = Arc::new(Mutex::new(
@@ -109,7 +155,7 @@ fn run_proxy_debug(request: RedisLuaDebugRequest) -> Result<RedisLuaDebugRespons
             success: false,
             mode: RedisLuaExecutionMode::Proxy,
             result_preview: String::new(),
-            error: Some(error.to_string()),
+            error: Some(format_lua_error(&error)),
             trace: lock_mutex(&trace_entries)?,
             logs: lock_mutex(&log_entries)?,
         },

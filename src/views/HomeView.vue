@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Star } from "lucide-vue-next";
+import { Moon, Star, Sun } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import { DATABASE_URL } from "../lib/database";
 import { useWorkspaceStore } from "../stores/workspace";
+import { useThemeStore } from "../stores/theme";
 
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
+const themeStore = useThemeStore();
 
 const searchTerm = computed({
   get: () => workspaceStore.searchTerm,
@@ -30,6 +32,11 @@ function openTool(toolId: string) {
         <div class="hero-actions">
           <button class="primary-button" type="button" @click="openTool('redis-lua-debug-console')">打开 Redis Lua 调试台</button>
           <button class="ghost-button" type="button" @click="openTool('json-formatter')">进入工作台</button>
+          <button class="ghost-button" type="button" :title="themeStore.isDark ? '切换到浅色' : '切换到深色'" @click="themeStore.toggle">
+            <Sun v-if="themeStore.isDark" :size="16" />
+            <Moon v-else :size="16" />
+            {{ themeStore.isDark ? "浅色" : "深色" }}
+          </button>
         </div>
       </div>
 
